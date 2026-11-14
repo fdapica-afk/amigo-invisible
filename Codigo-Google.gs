@@ -159,6 +159,7 @@ function guardarRespuestas(token, tipo, raw, lista) {
     const datos = leer();
     const p = buscarPorToken(datos, token);
     if (!p) throw new Error('Enlace no válido');
+    tipo = p.cuestionario || tipo;   // manda el que eligió el organizador
     const ahora = new Date().toISOString();
     const correo = String(p.email || '').trim().toLowerCase();
     // Se guarda en esa persona y en sus otras fichas con el mismo correo (por ejemplo, en otro sorteo)
@@ -220,18 +221,12 @@ const esc = t => String(t==null?'':t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':
 let tipo = D && D.tipo, raw = (D && D.raw) || {};
 function inicio(){
   if(!D){ app.innerHTML='<h1>Amigo invisible</h1><div class="card">Este enlace no es válido o ya no existe. Pide uno nuevo a quien organiza el sorteo.</div>'; return; }
-  if(!tipo) return elegir();
+  if(!tipo || !D.cuestionarios[tipo]){ app.innerHTML='<h1>¡Hola, '+esc(D.nombre)+'!</h1><div class="card">Tu cuestionario todavía no está preparado. Avisa a quien organiza el sorteo.</div>'; return; }
   formulario();
-}
-function elegir(){
-  app.innerHTML='<h1>¡Hola, '+esc(D.nombre)+'!</h1><p class="sub">Cuéntale a tu amigo invisible qué te gusta para que acierte con tu regalo. Elige el cuestionario:</p>'+
-    '<button class="pick" onclick="tipo=\\'completo\\';formulario()"><b>✨ Completo</b>Tallas, colores, accesorios, belleza y aficiones. Unos 4 minutos.</button>'+
-    '<button class="pick" onclick="tipo=\\'sencillo\\';formulario()"><b>⚡ Rápido</b>Lo básico: qué te gusta, talla y aficiones. Unos 2 minutos.</button>';
 }
 function formulario(){
   const C = D.cuestionarios[tipo];
   let h='<h1>¡Hola, '+esc(D.nombre)+'!</h1><p class="sub">Responde lo que quieras: nada es obligatorio. Lo que pongas le llegará a quien te regale, y nadie sabrá quién es. 🤫</p>';
-  h+='<button class="cambiar" onclick="tipo=\\'\\';elegir()">Cambiar a '+(tipo==='completo'?'cuestionario rápido':'cuestionario completo')+'</button>';
   C.secciones.forEach(s=>{
     h+='<div class="card"><h2>'+esc(s.t)+'</h2>';
     s.p.forEach(q=>{

@@ -181,7 +181,17 @@ function load(){
 }
 let DB = load();
 setTimeout(()=>{ const a=repararTextos(), b=asegurarTokens(); if(a||b) guardarLocal(); },0);
-function asegurarTokens(){ let c=false; (DB.sorteos||[]).forEach(s=>(s.personas||[]).forEach(p=>{ if(!p.token){ p.token=randHex(12); c=true; } })); return c; }
+function asegurarTokens(){ let c=false; (DB.sorteos||[]).forEach(s=>(s.personas||[]).forEach(p=>{ if(!p.token){ p.token=randHex(12); c=true; } if(!p.cuestionario){ p.cuestionario=tipoPorNombre(p.nombre); c=true; } })); return c; }
+/* Mujer → cuestionario completo · Hombre → cuestionario rápido (se deduce del nombre) */
+const NOMBRES_M = 'carmen pilar isabel raquel ines belen rocio consuelo dolores mercedes nieves beatriz ruth rut noemi abigail esther ester maribel mabel sol luz iris miriam lourdes montse montserrat maite irene amparo rosario paz flor marisol remedios soledad piedad trinidad asuncion concepcion encarnacion inmaculada merche pili mari cristi zoe abril carol leire leyre elisabet ivonne itziar uxue maialen ane elene josune nahia alba arantxa yasmin jazmin chloe lis noor mar maria'.split(' ');
+const NOMBRES_H = 'borja luca bautista joshua isaias jeremias nicola elias tobias matias lucas andreas jona josema chema garcia'.split(' ');
+function tipoPorNombre(nombre){
+  const n = String(nombre||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').split(/[\s\-]+/)[0];
+  if(!n) return 'sencillo';
+  if(NOMBRES_M.includes(n)) return 'completo';
+  if(NOMBRES_H.includes(n)) return 'sencillo';
+  return /a$/.test(n) ? 'completo' : 'sencillo';
+}
 
 /* ---------- Conexión con Google (datos en Drive + envío con Gmail) ---------- */
 const CONF_KEY = 'amigoInvisible.conexion';
@@ -218,6 +228,7 @@ function pintarNube(){
 function setNube(s){ NUBE = s; pintarNube(); }
 async function cargarNube(){
   if(!conectado()) { setNube('off'); return; }
+  if(nubeCargada && $('#modal').classList.contains('show')) return; // no cambiar datos con una ventana abierta
   setNube('cargando');
   try{
     const j = await llamar('leer');
@@ -454,7 +465,7 @@ function tPersonas(s){
       ${s.personas.length ? s.personas.map((p,i)=>`
         <div class="person ${p.activo===false?'off':''}">
           <div class="av" style="background:${color(i)}">${esc(iniciales(p.nombre))}</div>
-          <div class="pinfo"><div class="pname">${esc(p.nombre)}</div><div class="pmail">${esc(p.email)}</div>${listaIdeas(p.ideas).length?`<div class="pmail" style="color:var(--green)">💡 ${listaIdeas(p.ideas).length} ${listaIdeas(p.ideas).length===1?'idea':'ideas'} de regalo</div>`:''}${p.respondido?`<div class="pmail" style="color:var(--green)">📋 Cuestionario rellenado</div>`:(p.cuestEnviado?`<div class="pmail" style="color:#a0670a">📋 Cuestionario enviado, sin responder</div>`:'')}</div>
+          <div class="pinfo"><div class="pname">${esc(p.nombre)}</div><div class="pmail">${esc(p.email)}</div>${listaIdeas(p.ideas).length?`<div class="pmail" style="color:var(--green)">💡 ${listaIdeas(p.ideas).length} ${listaIdeas(p.ideas).length===1?'idea':'ideas'} de regalo</div>`:''}<div class="pmail" style="white-space:normal">${p.cuestionario==='completo'?'👩 Mujer':'👨 Hombre'} · ${p.respondido?'<span style="color:var(--green)">✅ rellenado</span>':(p.cuestEnviado?'<span style="color:#a0670a">⏳ sin responder</span>':'📋 sin enviar')}</div></div>
           <label class="switch" title="Participa este año" style="margin:0"><input type="checkbox" ${p.activo!==false?'checked':''} onchange="togglePersona('${p.id}',this.checked)"><span></span></label>
           <button class="mini" aria-label="Editar" onclick="editarPersona('${p.id}')">✏️</button>
         </div>`).join('') : `<div class="empty">Todavía no hay nadie. Añade a la familia aquí abajo o importa tu Excel.</div>`}
@@ -462,7 +473,7 @@ function tPersonas(s){
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:18px">📋 Cuestionario de gustos</b><span class="badge ok">${s.personas.filter(p=>p.respondido).length} de ${s.personas.length} rellenado</span></div>
-      <p class="note">Cada persona recibe un enlace y rellena sus gustos en el navegador, sin instalar nada. Sus respuestas le llegarán a quien le regale. En el ✏️ de cada uno eliges si recibe el cuestionario completo o el rápido, y puedes copiar su enlace para mandarlo por WhatsApp.</p>
+      <p class="note">Cada persona recibe un enlace y rellena sus gustos en el navegador, sin instalar nada. Sus respuestas le llegarán a quien le regale. Las mujeres reciben el cuestionario completo y los hombres el rápido; la app lo deduce sola por el nombre. Desde el ✏️ de cada uno puedes copiar su enlace para WhatsApp.</p>
       <button class="btn gold block" onclick="enviarCuestionarios()">📨 Enviar a quien no lo ha rellenado</button>
     </div>
     <div class="card">
@@ -480,7 +491,7 @@ function anadirPersona(){
   const s=S(VIEW.id), n=$('#nNombre').value.trim(), e=$('#nEmail').value.trim();
   if(!n) return toast('Escribe un nombre');
   if(!emailValido(e)) return toast('Ese correo no parece válido');
-  s.personas.push({id:uid(), token:randHex(12), nombre:n, email:e, ideas:$('#nIdeas').value.trim(), activo:true}); save(); render();
+  s.personas.push({id:uid(), token:randHex(12), cuestionario:tipoPorNombre(n), nombre:n, email:e, ideas:$('#nIdeas').value.trim(), activo:true}); save(); render();
   toast(`${n} añadido/a 🎄`); setTimeout(()=>$('#nNombre')?.focus(),50);
 }
 function togglePersona(id, on){ const p=S(VIEW.id).personas.find(x=>x.id===id); p.activo=on; save(); render(); }
@@ -491,14 +502,14 @@ function editarPersona(id){
     <label>Correo</label><input id="eE" type="email" value="${esc(p.email)}">
     <label>Gustos e ideas de regalo (una por línea)</label><textarea id="eI" style="min-height:140px" placeholder="Novelas de misterio&#10;Plantas&#10;Chocolate negro">${esc(p.ideas||'')}</textarea>
     <p class="note" style="margin:4px 0 0">Le llegarán a quien le toque regalar a ${esc(p.nombre)}.</p>
-    <label>Cuestionario de gustos</label>
-    <select id="eC"><option value="">Que elija al abrirlo</option><option value="completo" ${p.cuestionario==='completo'?'selected':''}>Completo (mujeres)</option><option value="sencillo" ${p.cuestionario==='sencillo'?'selected':''}>Rápido (hombres)</option></select>
+    <label>Cuestionario de gustos (puesto automáticamente por el nombre)</label>
+    <select id="eC"><option value="completo" ${p.cuestionario==='completo'?'selected':''}>👩 Mujer (cuestionario completo)</option><option value="sencillo" ${p.cuestionario==='sencillo'?'selected':''}>👨 Hombre (cuestionario rápido)</option></select>
     <div class="row2" style="margin-top:8px"><button class="btn small" id="eLink">🔗 Copiar enlace</button><button class="btn small" id="eSend">✉️ Enviárselo</button></div>
     ${p.respuestas&&p.respuestas.lista&&p.respuestas.lista.length?`<details style="margin-top:10px"><summary style="font-weight:800;cursor:pointer">📋 Ver sus respuestas</summary><div class="preview" style="margin-top:8px;font-size:14px">${p.respuestas.lista.map(r=>`<div style="margin-bottom:6px"><span style="color:var(--ink2);font-size:12px">${esc(r.q)}</span><br><b>${esc(r.a)}</b></div>`).join('')}</div></details>`:''}
     <div class="row2" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn gold" id="eOk">Guardar</button></div>
     <button class="btn block" style="margin-top:10px;color:var(--red)" id="eDel">🗑️ Quitar del sorteo</button>`);
-  $('#eOk').onclick=()=>{ const n=$('#eN').value.trim(), e=$('#eE').value.trim(); if(!n) return toast('Escribe un nombre'); if(!emailValido(e)) return toast('Ese correo no parece válido'); p.nombre=n; p.email=e; p.ideas=$('#eI').value.trim(); p.cuestionario=$('#eC').value||undefined; save(); closeModal(); render(); };
-  $('#eC').onchange=()=>{ p.cuestionario=$('#eC').value||undefined; save(); };
+  $('#eOk').onclick=()=>{ const n=$('#eN').value.trim(), e=$('#eE').value.trim(); if(!n) return toast('Escribe un nombre'); if(!emailValido(e)) return toast('Ese correo no parece válido'); p.nombre=n; p.email=e; p.ideas=$('#eI').value.trim(); p.cuestionario=$('#eC').value; save(); closeModal(); render(); };
+  $('#eC').onchange=()=>{ p.cuestionario=$('#eC').value; save(); };
   $('#eLink').onclick=()=>copiarEnlace(p);
   $('#eSend').onclick=async()=>{ const b=$('#eSend'); b.disabled=true; b.textContent='Enviando…'; const ok=await enviarCuestionarioA(s,p); b.disabled=false; b.textContent=ok?'✓ Enviado':'✉️ Enviárselo'; };
   $('#eDel').onclick=async()=>{ closeModal(); if(await confirmar('¿Quitar a '+esc(p.nombre)+'?','Si solo no participa este año, mejor apaga su interruptor. Así se conserva su historial.','Quitar',true)){ s.personas=s.personas.filter(x=>x.id!==id); save(); render(); } };
@@ -566,9 +577,27 @@ function tReglas(s){
   ['rAnt','rMax','rVen'].forEach(i=>$('#'+i).onchange=upd);
 }
 /* ---------- Cuestionario de gustos ---------- */
+/* Antes de enviar: el organizador marca Mujer u Hombre a quien no lo tenga */
+function asignarTipos(lista){
+  return new Promise(res=>{
+    const sin=lista.filter(p=>!p.cuestionario);
+    const fila=p=>`<div class="person"><div class="pinfo"><div class="pname">${esc(p.nombre)}</div></div>
+      <button class="btn small" data-id="${p.id}" data-t="completo">👩 Mujer</button><button class="btn small" data-id="${p.id}" data-t="sencillo">👨 Hombre</button></div>`;
+    modal(`<h3 style="margin:0 0 6px;font-size:20px">¿Qué cuestionario recibe cada uno?</h3><p class="note">Mujer: cuestionario completo. Hombre: cuestionario rápido.</p>${sin.map(fila).join('')}
+      <div class="row2" style="margin-top:14px"><button class="btn" id="tNo">Cancelar</button><button class="btn gold" id="tOk">Continuar</button></div>`);
+    document.querySelectorAll('#modalBox [data-t]').forEach(b=>b.onclick=()=>{
+      const p=lista.find(x=>x.id===b.dataset.id); p.cuestionario=b.dataset.t;
+      b.parentNode.querySelectorAll('[data-t]').forEach(x=>{ x.classList.remove('gold'); }); b.classList.add('gold');
+    });
+    $('#tNo').onclick=()=>{ closeModal(); save(); res(false); };
+    $('#tOk').onclick=()=>{ if(lista.some(p=>!p.cuestionario)) return toast('Falta elegir a alguien'); closeModal(); save(); res(true); };
+  });
+}
 function enlaceCuestionario(p){ return CONF.url.trim() + '?t=' + p.token; }
 async function copiarEnlace(p){
   if(!conectado()) return toast('Primero conecta el Gmail del sorteo en Ajustes');
+  if(!p.cuestionario) return toast('Elige primero si es Mujer u Hombre');
+  if(pendiente) await subir();
   const url=enlaceCuestionario(p);
   try{ await navigator.clipboard.writeText(url); toast('Enlace copiado. Pégalo en WhatsApp 📋'); }
   catch(e){ modal(`<h3 style="margin:0 0 8px">Enlace de ${esc(p.nombre)}</h3><p class="note">Mantén pulsado para copiarlo:</p><input value="${esc(url)}" readonly onclick="this.select()"><button class="btn gold block" style="margin-top:12px" onclick="closeModal()">Hecho</button>`); }
@@ -583,8 +612,10 @@ function htmlMarco(titulo, sub, cuerpo){
 async function enviarCuestionarioA(s, p){
   if(!conectado()){ toast('Primero conecta el Gmail del sorteo en Ajustes'); return false; }
   if(!emailValido(p.email)){ toast('Revisa el correo de '+p.nombre); return false; }
+  if(!p.cuestionario){ toast('Elige primero si '+p.nombre+' es Mujer u Hombre'); return false; }
   if(pendiente || !nubeCargada){ await (nubeCargada ? subir() : cargarNube()); if(pendiente) await subir(); }
   if(NUBE==='error'){ toast('Sin conexión con la nube. Inténtalo de nuevo.'); return false; }
+  { const s2=DB.sorteos.find(x=>x.id===s.id), p2=s2 && s2.personas.find(x=>x.id===p.id); if(s2 && p2){ if(!p2.cuestionario) p2.cuestionario=p.cuestionario; s=s2; p=p2; } }
   const url=enlaceCuestionario(p);
   const cuerpo=`¡Hola <b>${esc(p.nombre)}</b>! 🎄<br><br>Se acerca el amigo invisible <b>(${esc(s.nombre)})</b>. Para que quien te regale acierte, cuéntanos qué te gusta.<br><br>Son un par de minutos y no hace falta instalar nada.<br><br>
 <a href="${esc(url)}" style="display:inline-block;background:#c0392b;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 22px;border-radius:12px;font-family:Arial,sans-serif;font-size:17px">🎁 Rellenar mis gustos</a><br><br>
@@ -596,11 +627,13 @@ async function enviarCuestionarioA(s, p){
   }catch(e){ toast('No se pudo enviar a '+p.nombre+': '+String(e.message).slice(0,60)); return false; }
 }
 async function enviarCuestionarios(){
-  const s=S(VIEW.id);
   if(!conectado()) return toast('Primero conecta el Gmail del sorteo en Ajustes');
   await cargarNube();
+  if(pendiente) await subir();
+  const s=S(VIEW.id); if(!s) return;
   const lista=s.personas.filter(p=>p.activo!==false && !p.respondido && emailValido(p.email));
   if(!lista.length) return toast('Todos lo han rellenado 🎉');
+  if(lista.some(p=>!p.cuestionario) && !await asignarTipos(lista)) return;
   if(!await confirmar('¿Enviar el cuestionario?', `Se enviará a <b>${lista.length}</b> ${lista.length===1?'persona':'personas'}: ${lista.map(p=>esc(p.nombre)).join(', ')}.`, 'Enviar')) return;
   let ok=0;
   for(const p of lista){ toast(`✉️ Enviando a ${p.nombre}…`); if(await enviarCuestionarioA(s,p)) ok++; await sleep(300); }
@@ -744,7 +777,7 @@ function meterEn(s, lista){
     const ya=s.personas.find(p=>norm(p.nombre)===norm(x.nombre) && (!x.email || norm(p.email)===norm(x.email)));
     if(ya){ if(x.ideas){ ya.ideas=x.ideas.replace(/\s*[;|]\s*/g,'\n'); n++; } continue; }
     if(!emailValido(x.email)) continue;
-    s.personas.push({id:uid(),token:randHex(12),nombre:x.nombre,email:x.email,ideas:(x.ideas||'').replace(/\s*[;|]\s*/g,'\n'),activo:true}); n++;
+    s.personas.push({id:uid(),token:randHex(12),cuestionario:tipoPorNombre(x.nombre),nombre:x.nombre,email:x.email,ideas:(x.ideas||'').replace(/\s*[;|]\s*/g,'\n'),activo:true}); n++;
   } return n;
 }
 function procesarImport(lista){
