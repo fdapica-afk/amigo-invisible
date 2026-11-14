@@ -180,6 +180,7 @@ function load(){
   return seed();
 }
 let DB = load();
+setTimeout(()=>{ if(repararTextos()) guardarLocal(); },0);
 
 /* ---------- Conexión con Google (datos en Drive + envío con Gmail) ---------- */
 const CONF_KEY = 'amigoInvisible.conexion';
@@ -190,8 +191,20 @@ let NUBE = 'off';            // off · cargando · ok · subiendo · error
 let nubeCargada = false;     // ¿hemos leído ya los datos de la nube en esta sesión?
 let pendiente = false, subirT = null;
 
+/* Envía todo en ASCII (emojis y tildes como \uXXXX) para que Google no los estropee */
+function soloAscii(t){ return t.replace(/[\u007f-\uffff]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4,'0')); }
+/* Arregla textos que ya se estropearon (emojis convertidos en �) */
+const sinEmoji = t => String(t||'').replace(/[\uFFFD\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F\u200D]/gu,'').replace(/\s+/g,' ').trim();
+function repararTextos(){
+  let cambio=false;
+  for(const s of DB.sorteos||[]){ const ev=s.evento; if(!ev) continue;
+    if(/\uFFFD/.test(ev.mensaje||'')){ ev.mensaje = sinEmoji(ev.mensaje)===sinEmoji(DEFAULT_MSG) ? DEFAULT_MSG : ev.mensaje.replace(/\uFFFD+/g,''); cambio=true; }
+    if(/\uFFFD/.test(ev.asunto||'')){ ev.asunto = '🎁 Tu amigo invisible · {sorteo}'; cambio=true; }
+  }
+  return cambio;
+}
 async function llamar(accion, extra={}){
-  const r = await fetch(CONF.url.trim(), { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({accion, clave:CONF.clave, ...extra}) });
+  const r = await fetch(CONF.url.trim(), { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: soloAscii(JSON.stringify({accion, clave:CONF.clave, ...extra})) });
   let j; try{ j = await r.json(); }catch(e){ throw new Error('La dirección de conexión no responde bien. Revisa que termina en /exec y que el acceso es “Cualquier usuario”.'); }
   if(!j.ok) throw new Error(j.error || 'Error');
   return j;
@@ -210,6 +223,7 @@ async function cargarNube(){
     if(j.datos && Array.isArray(j.datos.sorteos)){
       if(pendiente && (DB.rev||0) > (j.datos.rev||0) && localStorage.getItem('amigoInvisible.sync')===CONF.url){ nubeCargada = true; await subir(); return; }
       DB = j.datos; guardarLocal(); localStorage.setItem('amigoInvisible.sync', CONF.url);
+      if(repararTextos()){ nubeCargada = true; save(); }
     } else { nubeCargada = true; await subir(); return; } // primera vez: subimos lo que hay en el móvil
     nubeCargada = true; setNube('ok');
     if(!busy && !$('#modal').classList.contains('show') && !document.activeElement?.matches('input,textarea')) render();
@@ -290,7 +304,8 @@ function vars(s, persona, amigo){
   return { nombre:persona, amigo, sorteo:s.nombre, fecha:fechaTexto(ev), lugar:ev.lugar||'por decidir', presupuesto: ev.presupuesto ? (/\d$/.test(ev.presupuesto.trim()) ? ev.presupuesto.trim()+' €' : ev.presupuesto) : 'sin límite' };
 }
 function rellenar(tpl, v){ return tpl.replace(/\{(\w+)\}/g, (m,k)=> k in v ? v[k] : m); }
-function htmlCorreo(s, v){
+function htmlCorreo(s, v){ return htmlCorreo0(s, v).replace(/[\u{80}-\u{10FFFF}]/gu, c => '&#' + c.codePointAt(0) + ';'); }
+function htmlCorreo0(s, v){
   const cuerpo = esc(s.evento.mensaje).replace(/\{(\w+)\}/g, (m,k)=>{
     if(k==='amigo') return `<span style="display:inline-block;font-size:26px;font-weight:bold;color:#c0392b;padding:4px 0">${esc(v.amigo)}</span>`;
     return k in v ? `<b>${esc(v[k])}</b>` : m;
