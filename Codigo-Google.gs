@@ -27,7 +27,8 @@ function atender(p) {
       case 'leer':    return { ok: true, datos: leer() };
       case 'guardar': guardar(p.datos); return { ok: true };
       case 'enviar':
-        GmailApp.sendEmail(p.to, p.subject, p.message, { htmlBody: p.html, name: 'Amigo invisible' });
+        // MailApp respeta los emojis del asunto (GmailApp los estropea)
+        MailApp.sendEmail({ to: p.to, subject: p.subject, body: p.message, htmlBody: p.html, name: 'Amigo invisible' });
         return { ok: true };
       case 'cuota':   return { ok: true, restantes: MailApp.getRemainingDailyQuota() };
       default:        return { ok: true, hola: 'Conexión correcta 🎄' };
