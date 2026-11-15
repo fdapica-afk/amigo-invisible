@@ -593,7 +593,7 @@ function asignarTipos(lista){
     $('#tOk').onclick=()=>{ if(lista.some(p=>!p.cuestionario)) return toast('Falta elegir a alguien'); closeModal(); save(); res(true); };
   });
 }
-function enlaceCuestionario(p){ return CONF.url.trim() + '?t=' + p.token; }
+function enlaceCuestionario(p){ return new URL('cuestionario.html', location.href).href.split('?')[0].split('#')[0] + '?t=' + p.token + '&u=' + encodeURIComponent(CONF.url.trim()); }
 async function copiarEnlace(p){
   if(!conectado()) return toast('Primero conecta el Gmail del sorteo en Ajustes');
   if(!p.cuestionario) return toast('Elige primero si es Mujer u Hombre');
