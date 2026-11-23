@@ -1,39 +1,52 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>🎁 Amigo invisible · Tus gustos</title>
 <meta name="theme-color" content="#0f2e22">
 <link rel="icon" href="icons/icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#0f2e22;color:#fff8ec;font-family:Nunito,Arial,sans-serif;padding:16px 14px 110px}
-.w{max-width:560px;margin:0 auto}
-h1{font-family:'Mountains of Christmas',Georgia,serif;color:#ffd666;text-align:center;font-size:36px;margin:8px 0 2px}
-.sub{text-align:center;color:#cfe3d6;margin:0 0 16px;line-height:1.45}
-.card{background:#fff8ec;color:#3a1410;border-radius:18px;padding:16px;margin-bottom:14px;border-top:6px solid #c0392b}
-.card h2{font-family:'Mountains of Christmas',Georgia,serif;color:#9e2a1f;margin:0 0 6px;font-size:26px}
+:root{--bg:#14213d;--cab:#1d2d50;--cab2:#0f1a33;--acento:#e5c07b;--claro:#e5c07b;--papel:#fbf8f1;--tinta:#1d2d50;--sub:#c9d3e6;--borde:#e5c07b;--nombre:#b08a3e;--ok:#1d2d50;--titulo:'Cormorant Garamond',Georgia,serif}
+body.reyes{--borde:#6b3fa0;--nombre:#6b3fa0;--ok:#2e8b57;--bg:#211a44;--cab:#6b3fa0;--cab2:#4f2d7a;--papel:#fbf6ff;--tinta:#2a1840;--sub:#d9cff0;--titulo:Georgia,serif}
+body.cumple{--borde:#e0457b;--nombre:#e0457b;--ok:#2e8b57;--bg:#123a4a;--cab:#e0457b;--cab2:#b8325f;--acento:#2ec4b6;--claro:#ffe066;--papel:#fffaf3;--tinta:#2b1b2e;--sub:#cde8ee;--titulo:Georgia,serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--papel);font-family:Nunito,Arial,sans-serif;padding:16px 14px 110px}
+.w{max-width:560px;margin:0 auto;position:relative;z-index:1}
+h1{font-family:var(--titulo);color:var(--claro);text-align:center;font-size:36px;margin:8px 0 2px}
+.sub{text-align:center;color:var(--sub);margin:0 0 16px;line-height:1.45}
+.card{background:var(--papel);color:var(--tinta);border-radius:18px;padding:16px;margin-bottom:14px;border-top:6px solid var(--borde)}
+.card h2{font-family:var(--titulo);color:var(--cab2);margin:0 0 6px;font-size:26px}
 .q{font-weight:800;margin:14px 0 8px;font-size:16px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{border:2px solid #e4d3b4;background:#fff;color:#3a1410;border-radius:999px;padding:9px 14px;font:700 15px Nunito,Arial;cursor:pointer}
-.chip.on{background:#2e8b57;border-color:#2e8b57;color:#fff}
+.chip{border:2px solid #e4d3b4;background:#fff;color:var(--tinta);border-radius:999px;padding:9px 14px;font:700 15px Nunito,Arial;cursor:pointer}
+.chip.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .chip.on:before{content:"✓ "}
-input,textarea{width:100%;border:2px solid #e4d3b4;border-radius:12px;padding:11px 12px;font:16px Nunito,Arial;color:#3a1410;background:#fff}
+input,textarea{width:100%;border:2px solid #e4d3b4;border-radius:12px;padding:11px 12px;font:16px Nunito,Arial;color:var(--tinta);background:#fff}
 textarea{min-height:90px;resize:vertical}
-input:focus,textarea:focus{outline:none;border-color:#e9b44c}
-.save{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(528px,calc(100% - 28px));border:0;border-radius:18px;padding:16px;font:700 22px 'Mountains of Christmas',Georgia,serif;background:#c0392b;color:#fff;box-shadow:0 6px 0 #9e2a1f;cursor:pointer}
+textarea.ideas{min-height:150px;border-style:dashed;border-color:var(--acento)}
+input:focus,textarea:focus{outline:none;border-color:var(--acento)}
+.save{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(528px,calc(100% - 28px));border:0;border-radius:18px;padding:16px;font:700 22px var(--titulo);background:var(--cab);color:#fff;box-shadow:0 6px 0 var(--cab2);cursor:pointer}
 .save[disabled]{opacity:.6}
-.pick{display:block;width:100%;text-align:left;border:0;border-radius:16px;padding:16px;margin-bottom:12px;background:#fff8ec;color:#3a1410;cursor:pointer;font:16px Nunito,Arial}
-.pick b{display:block;font-size:19px;color:#9e2a1f;margin-bottom:4px}
+.pick{display:block;width:100%;border:0;border-radius:16px;padding:16px;margin-bottom:12px;background:var(--papel);color:var(--tinta);cursor:pointer;font:16px Nunito,Arial;text-align:center}
 .done{text-align:center;padding:30px 10px}.done .big{font-size:60px}
-.note{font-size:13px;color:#7a4a3a}
-.cambiar{background:none;border:0;color:#ffd666;text-decoration:underline;font:14px Nunito,Arial;display:block;margin:0 auto 14px;cursor:pointer}
-</style></head><body><div class="w" id="app"></div><div id="aviso" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#fff8ec;color:#3a1410;padding:12px 16px;border-radius:12px;font-weight:700;z-index:9;max-width:90%"></div>
+.note{font-size:13px;color:#7a6a5a}
+.banner{background:var(--claro);color:#3a2404;border-radius:14px;padding:12px 14px;margin-bottom:14px;font-weight:700;line-height:1.4}
+#aviso{display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--papel);color:var(--tinta);padding:12px 16px;border-radius:12px;font-weight:700;z-index:9;max-width:90%}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:0}
+</style>
+</head>
+<body>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="w" id="app"></div><div id="aviso" role="status"></div>
 <script>
+'use strict';
 const Q = new URLSearchParams(location.search);
 const TOKEN = Q.get('t') || '', URLG = Q.get('u') || '';
 const app = document.getElementById('app');
 const esc = t => String(t==null?'':t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const soloAscii = t => t.replace(/[\u007f-\uffff]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4,'0'));
-let D = null, tipo = '', raw = {};
+const soloAscii = t => t.replace(/[\u007f-￿]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4,'0'));
+let D = null, tipo = '', raw = {}, ideas = '';
 function aviso(t){ const el=document.getElementById('aviso'); el.textContent=t; el.style.display='block'; setTimeout(()=>el.style.display='none',4000); }
 async function llamar(o){
   const r = await fetch(URLG, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: soloAscii(JSON.stringify(o))});
@@ -42,35 +55,38 @@ async function llamar(o){
 function noValido(){ app.innerHTML='<h1>Amigo invisible</h1><div class="card">Este enlace no es válido o ya no existe. Pide uno nuevo a quien organiza el sorteo.</div>'; }
 async function inicio(){
   if(!TOKEN || !/^https:\/\/script\.google(usercontent)?\.com\//.test(URLG)) return noValido();
-  app.innerHTML='<h1>Amigo invisible</h1><p class="sub">Cargando tu cuestionario… 🎄</p>';
+  app.innerHTML='<h1>Amigo invisible</h1><p class="sub">Cargando tu cuestionario… 🎁</p>';
   try{ D = await llamar({accion:'cuestionario', t:TOKEN}); }
   catch(e){ return /no válido/i.test(e.message) ? noValido() : (app.innerHTML='<h1>Amigo invisible</h1><div class="card">No se ha podido cargar. Revisa tu conexión y vuelve a abrir el enlace.</div>'); }
-  tipo = D.tipo; raw = D.raw || {};
+  document.body.className = D.tema || 'navidad';
+  tipo = D.tipo; raw = D.raw || {}; ideas = D.ideas || '';
   if(!tipo || !D.cuestionarios[tipo]){ app.innerHTML='<h1>¡Hola, '+esc(D.nombre)+'!</h1><div class="card">Tu cuestionario todavía no está preparado. Avisa a quien organiza el sorteo.</div>'; return; }
   formulario();
 }
-
 function formulario(){
-  const C = D.cuestionarios[tipo];
-  let h='<h1>¡Hola, '+esc(D.nombre)+'!</h1><p class="sub">Responde lo que quieras: nada es obligatorio. Lo que pongas le llegará a quien te regale, y nadie sabrá quién es. 🤫</p>';
+  const C = D.cuestionarios[tipo], ninos = tipo==='ninos';
+  let h='<h1>¡Hola, '+esc(D.nombre)+'!</h1><p class="sub">'+(ninos?'Cuéntanos qué te gusta para que tu amigo invisible acierte. Si lo necesitas, pide ayuda a un adulto. 😊':'Responde lo que quieras: nada es obligatorio. Lo que pongas le llegará a quien te regale, y nadie sabrá quién es. 🤫')+'</p>';
+  if(D.anterior) h+='<div class="banner">📅 Estas son tus respuestas de '+D.anterior+'. Revísalas, cambia lo que haya cambiado y pulsa Guardar.</div>';
   C.secciones.forEach(s=>{
     h+='<div class="card"><h2>'+esc(s.t)+'</h2>';
-    s.p.forEach(q=>{
+    (s.p||[]).forEach(q=>{
       h+='<div class="q">'+esc(q.q)+'</div>';
       const v = raw[q.id];
       if(q.tipo==='multi'||q.tipo==='uno'){
-        h+='<div class="chips" data-id="'+q.id+'" data-tipo="'+q.tipo+'">'+q.o.map(o=>{
+        h+='<div class="chips" data-id="'+q.id+'" data-tipo="'+q.tipo+'">'+(q.o||[]).map(o=>{
           const on = q.tipo==='multi' ? (Array.isArray(v)&&v.indexOf(o)>=0) : v===o;
           return '<button type="button" class="chip'+(on?' on':'')+'" data-v="'+esc(o)+'">'+esc(o)+'</button>'; }).join('')+'</div>';
+      } else if(q.tipo==='ideas'){
+        h+='<textarea class="ideas" data-id="'+q.id+'" data-tipo="ideas" placeholder="'+esc(q.ph||'Una idea por línea')+'">'+esc(ideas)+'</textarea><div class="note">Escribe una idea por línea. Cuantos más ejemplos, mejor.</div>';
       } else if(q.tipo==='largo'){
         h+='<textarea data-id="'+q.id+'" placeholder="'+esc(q.ph||'')+'">'+esc(v||'')+'</textarea>';
       } else {
-        h+='<input data-id="'+q.id+'" value="'+esc(v||'')+'" placeholder="'+esc(q.ph||'')+'">';
+        h+='<input data-id="'+q.id+'"'+(q.tipo==='enlace'?' type="url" inputmode="url"':'')+' value="'+esc(v||'')+'" placeholder="'+esc(q.ph||'')+'">';
       }
     });
     h+='</div>';
   });
-  h+='<p class="note" style="color:#cfe3d6;text-align:center">Puedes volver a abrir este enlace para cambiar tus respuestas cuando quieras.</p>';
+  h+='<p class="note" style="color:var(--sub);text-align:center">Puedes volver a abrir este enlace para cambiar tus respuestas cuando quieras.</p>';
   h+='<button class="save" id="save" onclick="guardar()">🎁 Guardar mis gustos</button>';
   app.innerHTML=h; window.scrollTo(0,0);
   document.querySelectorAll('.chips').forEach(g=>g.addEventListener('click',e=>{
@@ -79,23 +95,38 @@ function formulario(){
     else b.classList.toggle('on');
   }));
 }
-function guardar(){
-  const C = D.cuestionarios[tipo], r={}, lista=[];
-  C.secciones.forEach(s=>s.p.forEach(q=>{
+async function guardar(){
+  const C = D.cuestionarios[tipo], r={}, lista=[]; let ideasTxt;
+  C.secciones.forEach(s=>(s.p||[]).forEach(q=>{
     let v;
     if(q.tipo==='multi'){ v=[...document.querySelectorAll('.chips[data-id="'+q.id+'"] .chip.on')].map(b=>b.dataset.v); if(!v.length) v=null; }
     else if(q.tipo==='uno'){ const b=document.querySelector('.chips[data-id="'+q.id+'"] .chip.on'); v=b?b.dataset.v:null; }
+    else if(q.tipo==='ideas'){ ideasTxt=(document.querySelector('[data-id="'+q.id+'"]').value||'').trim(); return; }
     else { v=(document.querySelector('[data-id="'+q.id+'"]').value||'').trim()||null; }
     if(v){ r[q.id]=v; lista.push({q:q.q, a:Array.isArray(v)?v.join(', '):v}); }
   }));
   const b=document.getElementById('save'); b.disabled=true; b.textContent='Guardando…';
-  llamar({accion:'responder', t:TOKEN, tipo:tipo, raw:r, lista:lista}).then(()=>{
-    raw=r;
-    app.innerHTML='<div class="done"><div class="big">🎄</div><h1>¡Gracias, '+esc(D.nombre)+'!</h1><p class="sub">Tus gustos se han guardado. Tu amigo invisible los recibirá con el resultado del sorteo.</p><button class="pick" style="text-align:center" onclick="formulario()">✏️ Cambiar mis respuestas</button></div>';
-    window.scrollTo(0,0);
-  }).catch(()=>{ b.disabled=false; b.textContent='🎁 Guardar mis gustos'; aviso('No se pudo guardar. Revisa tu conexión e inténtalo otra vez.'); });
+  try{
+    await llamar({accion:'responder', t:TOKEN, raw:r, lista:lista, ideas:ideasTxt});
+    raw=r; if(typeof ideasTxt==='string') ideas=ideasTxt; D.anterior=null;
+    app.innerHTML='<div class="done"><div class="big">'+({reyes:'👑',cumple:'🎂'}[D.tema]||'✨')+'</div><h1>¡Gracias, '+esc(D.nombre)+'!</h1><p class="sub">Tus gustos se han guardado. Tu amigo invisible los recibirá.</p><button class="pick" onclick="formulario()">✏️ Cambiar mis respuestas</button></div>';
+    window.scrollTo(0,0); fiesta();
+  }catch(e){ b.disabled=false; b.textContent='🎁 Guardar mis gustos'; aviso('No se pudo guardar. Revisa tu conexión e inténtalo otra vez.'); }
 }
-
-
+function fiesta(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c=document.getElementById('fx'), x=c.getContext('2d'), dpr=devicePixelRatio||1;
+  c.width=innerWidth*dpr; c.height=innerHeight*dpr; c.style.width=innerWidth+'px'; c.style.height=innerHeight+'px';
+  const t=document.body.className||'navidad', forma=t==='reyes'?['★','✦','✧']:t==='cumple'?null:['✦','✧','★','❄'];
+  const cols=t==='cumple'?['#e0457b','#2ec4b6','#ffe066','#ffffff']:t==='reyes'?['#ffd666','#ffffff','#e9b44c']:['#e5c07b','#ffffff','#f3dfae'];
+  const P=[]; for(let i=0;i<60;i++) P.push({x:Math.random()*c.width,y:-Math.random()*c.height*.6,s:(Math.random()*10+9)*dpr,vy:(Math.random()*1.5+1.2)*dpr,d:Math.random()*6.3,r:Math.random()*6.3,ch:forma?forma[i%forma.length]:null,col:cols[i%cols.length]});
+  const t0=performance.now();
+  (function f(now){ const el=(now-t0)/1000, a=el>4?Math.max(0,1-(el-4)/1.2):1; x.clearRect(0,0,c.width,c.height);
+    for(const p of P){ p.y+=p.vy; p.d+=.03; p.x+=Math.sin(p.d)*dpr; p.r+=.03; x.save(); x.globalAlpha=a; x.translate(p.x,p.y); x.rotate(p.r); x.fillStyle=p.col;
+      if(p.ch){ x.font=p.s+'px serif'; x.textAlign='center'; x.fillText(p.ch,0,0); } else x.fillRect(-p.s/3,-p.s/6,p.s/1.5,p.s/3); x.restore(); }
+    if(a>0) requestAnimationFrame(f); else x.clearRect(0,0,c.width,c.height); })(t0);
+}
 inicio();
-</script></body></html>
+</script>
+</body>
+</html>
