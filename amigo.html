@@ -52,7 +52,7 @@ a{color:#2c7fb8;word-break:break-all}
 <script>
 'use strict';
 const Q = new URLSearchParams(location.search);
-const K = Q.get('k') || '', M = Q.get('m') || 'ver', QID = Q.get('q') || '', URLG = Q.get('u') || '';
+const K = Q.get('k') || '', M = Q.get('m') || 'ver', QID = Q.get('q') || '', URLG = Q.get('u') || '', R = Q.get('r') || '';
 const app = document.getElementById('app');
 const esc = t => String(t==null?'':t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const enlazar = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g,'<br>');
@@ -76,6 +76,10 @@ async function inicio(){
   tema(D.tema);
   if(D.sinSorteo || !D.amigo) return noValido('Todavía no se ha hecho el sorteo. ¡Un poco de paciencia!');
   if(M==='ok'){ llamar({accion:'revelar',k:K}).catch(()=>{}); D.revelado=true; return contenido('¡Gracias por confirmarlo! ✅'); }
+  if(M==='vienes'){
+    if(['si','no','nose'].includes(R)){ try{ await llamar({accion:'asistencia',k:K,r:R}); D.asistencia=R; }catch(e){} }
+    return contenido(R==='si'?'¡Genial, apuntado que vienes! 🙋':R==='no'?'Apuntado que no puedes ir. ¡Gracias por avisar!':R==='nose'?'Apuntado. Cuando lo sepas, cámbialo aquí abajo.':'');
+  }
   if(M==='preguntar' || M==='regalo' || D.revelado) return contenido();
   vistaRasca();
 }
@@ -112,6 +116,10 @@ function contenido(msg){
   let h = `<h1>${EMO[D.tema]||'🎁'} ${esc(D.sorteo)} ${D.anio}</h1>
     <div class="card" style="text-align:center"><div class="nota">${msg?esc(msg)+'<br>':''}${esc(D.nombre)}, te ha tocado regalar a…</div><div class="grande">${esc(D.amigo)}</div></div>
     <div class="card"><h2>📅 El reparto</h2><div class="evento"><div>📅 <b>${esc(D.evento.fecha)}</b></div><div>📍 <b>${esc(D.evento.lugar)}</b></div><div>💶 Presupuesto: <b>${esc(D.evento.presupuesto)}</b></div></div></div>`;
+  if(D.amigoAsiste==='no') h += `<div class="card" style="border-top-color:#a33a3a">ℹ️ <b>${esc(D.amigo)}</b> ha dicho que <b>no podrá ir al reparto</b>. Organízate para hacerle llegar el regalo.</div>`;
+  const op=(v,l)=>`<button class="btn ${D.asistencia===v?'':'sec'}" data-as="${v}" style="margin-top:6px">${l}</button>`;
+  h += `<div class="card" id="vienes"><h2>🙋 ¿Vienes al reparto?</h2>${op('si','🙋 Sí, voy')}${op('no','😔 No puedo ir')}${op('nose','🤔 Aún no lo sé')}
+    <p class="nota">Si no puedes ir, quien te regala lo sabrá para organizarse (sin que tú sepas quién es).</p></div>`;
   h += `<div class="card"><h2>💡 Sus gustos</h2>${!P.ideas.length&&!P.resumen.length?'<p class="nota">Todavía no ha contado nada. ¡Prueba a preguntarle! 👇</p>':''}
     ${P.ideas.length?'<div class="ideas">'+P.ideas.map(i=>'🎁 '+enlazar(i)).join('<br>')+'</div>':''}
     ${P.resumen.length?'<div class="res">'+P.resumen.map(r=>'<div><span>'+esc(r.q)+'</span><b>'+enlazar(r.a)+'</b></div>').join('')+'</div>':''}</div>`;
@@ -134,6 +142,10 @@ function contenido(msg){
     <button class="btn sec" id="br">${D.regalo?'Cambiar':'Guardar'}</button></div>`;
   app.innerHTML=h;
   if(M==='preguntar') setTimeout(()=>document.getElementById('preg')?.scrollIntoView({behavior:'smooth'}),300);
+  if(M==='vienes') setTimeout(()=>document.getElementById('vienes')?.scrollIntoView({behavior:'smooth'}),300);
+  document.querySelectorAll('[data-as]').forEach(b=>b.onclick=async()=>{ const v=b.dataset.as; b.disabled=true;
+    try{ await llamar({accion:'asistencia',k:K,r:v}); D.asistencia=v; aviso(v==='si'?'¡Apuntado que vienes! 🙋':v==='no'?'Apuntado que no puedes ir':'Apuntado'); contenido(); document.getElementById('vienes').scrollIntoView(); }
+    catch(e){ b.disabled=false; aviso(e.message||'No se pudo guardar'); } });
   if(M==='regalo') setTimeout(()=>{ document.getElementById('reg')?.scrollIntoView({behavior:'smooth'}); document.getElementById('tr')?.focus(); },300);
   const bq=document.getElementById('bq');
   if(bq) bq.onclick=async()=>{ const t=document.getElementById('tq').value.trim(); if(!t) return aviso('Escribe tu pregunta');

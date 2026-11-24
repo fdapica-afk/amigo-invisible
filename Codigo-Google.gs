@@ -14,7 +14,7 @@
  */
 const CLAVE = 'cambia-esta-clave';
 
-const VERSION = '3.2';
+const VERSION = '3.3';
 const ARCHIVO = 'amigo-invisible-datos.json';
 const MAX_PREGUNTAS = 15;          // por persona y año
 
@@ -45,6 +45,7 @@ const PUBLICAS = {
   pregunta:     p => verPregunta(p.k, p.q),
   contestar:    p => contestar(p.k, p.q, p.texto),
   regalo:       p => guardarRegalo(p.k, p.que),
+  asistencia:   p => guardarAsistencia(p.k, p.r),
 };
 
 function atender(p) {
@@ -60,6 +61,7 @@ function atender(p) {
       case 'prueba':            return correoPrueba(p.to, p.sid);
       case 'activarPreguntas':  return activarPreguntas(p.sid);
       case 'encuestaRegalo':    return encuestaRegalo(p.sid);
+      case 'preguntarAsistencia': return preguntarAsistencia(p.sid);
       case 'plantillas':        return { ok: true, efectivos: cuestionarios(leer()), defecto: CUESTIONARIOS };
       case 'estadisticas':      return estadisticas(p.sid);
       case 'estado':            return estado();
@@ -123,13 +125,17 @@ function mezclar(actual, nuevo) {
       if ((a.ideasAt || '') > (p.ideasAt || '')) { p.ideas = a.ideas; p.ideasAt = a.ideasAt; }
       if (a.regalos) p.regalos = a.regalos;
       if (a.cuestEnviado && (!p.cuestEnviado || a.cuestEnviado > p.cuestEnviado)) p.cuestEnviado = a.cuestEnviado;
+      if (a.asistencia && (!p.asistencia || (a.asistencia.f || '') > (p.asistencia.f || ''))) p.asistencia = a.asistencia;
     });
     const sa = sAct[s.id]; if (!sa) return;
     (s.recordatorios || []).forEach(r => { const ra = (sa.recordatorios || []).find(x => x.fecha === r.fecha); if (ra && ra.hecho) { r.hecho = ra.hecho; r.enviados = ra.enviados; } });
     if (s.encuestaRegalo && sa.encuestaRegalo && sa.encuestaRegalo.hecho && s.encuestaRegalo.fecha === sa.encuestaRegalo.fecha) s.encuestaRegalo.hecho = sa.encuestaRegalo.hecho;
+    if (s.vispera && sa.vispera && sa.vispera.hecho && s.vispera.cuando === sa.vispera.cuando) s.vispera.hecho = sa.vispera.hecho;
+    if (sa.asistenciaPreguntada && !s.asistenciaPreguntada) s.asistenciaPreguntada = sa.asistenciaPreguntada;
     (s.historial || []).forEach(h => {
       const ha = (sa.historial || []).find(x => (h.id && x.id === h.id) || (!h.id && x.anio === h.anio && x.enc === h.enc));
       if (!ha) return;
+      if (ha.enc !== h.enc) return;   // la app ha reajustado el sorteo (altas/bajas): manda lo de la app
       h.enviados = Object.assign({}, h.enviados || {}, ha.enviados || {});
       h.leidos = Object.assign({}, h.leidos || {}, ha.leidos || {});
       if (ha.estado === 'enviado') h.estado = 'enviado';
@@ -482,7 +488,7 @@ function datosAmigo(k) {
   if (!h) return Object.assign(base, { sinSorteo: true });
   const pares = dec(h.enc, s.salt), a = s.personas.find(x => x.id === pares[p.id]);
   const ev = s.evento || {}, op = opciones(s);
-  const preguntas = idsPreguntas('qg_' + p.id + '_' + h.anio).map(id => leerPregunta(id)).filter(Boolean)
+  const preguntas = idsPreguntas('qg_' + p.id + '_' + h.anio).map(id => leerPregunta(id)).filter(q => q && a && q.r === a.id)
     .map(q => ({ texto: q.texto, respuesta: q.resp || '', fecha: q.f }));
   const recibidas = idsPreguntas('qr_' + p.id + '_' + h.anio).map(id => Object.assign({ id: id }, leerPregunta(id) || {})).filter(q => q.texto)
     .map(q => ({ id: q.id, texto: q.texto, respuesta: q.resp || '' }));
@@ -493,6 +499,7 @@ function datosAmigo(k) {
     pistas: a ? pistas(a, h.anio) : { ideas: [], resumen: [] },
     preguntasActivas: op.preguntas, preguntas: preguntas, recibidas: recibidas, maxPreguntas: MAX_PREGUNTAS,
     regalo: regalo ? regalo.que : '',
+    asistencia: asisteEsteAnio(p, h.anio), amigoAsiste: a ? asisteEsteAnio(a, h.anio) : '',
   });
 }
 function marcarLeido(k) {
@@ -567,6 +574,54 @@ function activarPreguntas(sid) {
   return { ok: true, enviados: n };
 }
 
+/* ---------- ¿Vienes al reparto? ---------- */
+function asisteEsteAnio(p, anio) { return (p.asistencia && p.asistencia.anio === anio) ? p.asistencia.resp : ''; }
+function guardarAsistencia(k, resp) {
+  if (['si', 'no', 'nose'].indexOf(resp) < 0) throw new Error('Respuesta no válida');
+  conDatos(d => {
+    const r = porSecreto(d, k); if (!r) throw new Error('Enlace no válido');
+    const h = registroActual(r.s); if (!h) throw new Error('Todavía no hay sorteo');
+    r.p.asistencia = { anio: h.anio, resp: resp, f: ahoraISO() };
+  });
+  return { ok: true };
+}
+function preguntarAsistencia(sid) {
+  const d = leer(), s = buscarSorteo(d, sid), h = s && registroActual(s);
+  if (!h) throw new Error('Todavía no hay sorteo');
+  const pares = dec(h.enc, s.salt), t = tema(s), ev = s.evento || {}; let n = 0;
+  Object.keys(pares).forEach(pid => {
+    const p = s.personas.find(x => x.id === pid); if (!p || !emailValido(p.email)) return;
+    const k = secretoDe(s.id, p.id), u = r => enlacePagina(d, 'amigo.html', { k: k, m: 'vienes', r: r });
+    correo(p.email, '🙋 ¿Vienes al reparto? · ' + s.nombre,
+      'Hola ' + p.nombre + ', ¿vienes al reparto del amigo invisible (' + fechaTexto(ev) + ', ' + (ev.lugar || 'lugar por decidir') + ')? Responde aquí: ' + u('si'),
+      marco(t, '🙋 ¿Vienes al reparto?', esc(s.nombre), '¡Hola <b>' + esc(p.nombre) + '</b>!<br><br>📅 <b>' + esc(fechaTexto(ev)) + '</b><br>📍 <b>' + esc(ev.lugar || 'por decidir') + '</b><br><br>¿Vas a poder venir?<br><br>' +
+        boton(t, u('si'), '🙋 Sí, voy', '#2e8b57') + boton(t, u('no'), '😔 No puedo', '#a33a3a') + boton(t, u('nose'), '🤔 Aún no lo sé', '#6b6455') +
+        '<br><br><span style="font-size:13px;color:#7a6a5a">Si no puedes ir, quien te regala lo sabrá (sin que tú sepas quién es) para organizarse.</span>'));
+    n++;
+  });
+  conDatos(dd => { buscarSorteo(dd, sid).asistenciaPreguntada = ahoraISO(); });
+  limpiarEnviados(false);
+  return { ok: true, enviados: n };
+}
+/* ---------- Recordatorio la víspera del reparto ---------- */
+function recordatorioVispera(d, s) {
+  const h = registroActual(s); if (!h) return 0;
+  const pares = dec(h.enc, s.salt), t = tema(s), ev = s.evento || {}; let n = 0;
+  Object.keys(pares).forEach(gid => {
+    const g = s.personas.find(x => x.id === gid), a = s.personas.find(x => x.id === pares[gid]);
+    if (!g || !a || !emailValido(g.email)) return;
+    const url = enlacePagina(d, 'amigo.html', { k: secretoDe(s.id, g.id), m: 'ver' });
+    const noViene = asisteEsteAnio(a, h.anio) === 'no';
+    correo(g.email, '📅 ¡Mañana es el reparto! · ' + s.nombre,
+      'Hola ' + g.nombre + ', mañana es el reparto del amigo invisible: ' + fechaTexto(ev) + ', ' + (ev.lugar || 'lugar por decidir') + '. ¡No olvides el regalo! ' + url,
+      marco(t, '📅 ¡Mañana es el reparto!', esc(s.nombre), '¡Hola <b>' + esc(g.nombre) + '</b>! ' + t.emoji + '<br><br>📅 <b>' + esc(fechaTexto(ev)) + '</b><br>📍 <b>' + esc(ev.lugar || 'por decidir') + '</b><br>💶 Presupuesto: <b>' + esc(presupuestoTexto(ev)) + '</b><br><br>🎁 <b>¡No olvides el regalo!</b>' +
+        (noViene ? '<br><br><div style="background:#fff3d6;border-radius:10px;padding:10px;font-size:15px">ℹ️ Tu amigo invisible ha dicho que <b>no podrá ir</b>. Organízate para hacerle llegar el regalo.</div>' : '') +
+        '<br><br>' + boton(t, url, '🎁 Ver a quién le regalo')));
+    n++;
+  });
+  return n;
+}
+
 /* ---------- "¿Qué regalaste?" ---------- */
 function guardarRegalo(k, que) {
   que = String(que || '').trim().slice(0, 300);
@@ -625,7 +680,13 @@ function tareas() {
       let n = 0; pendientes.forEach(p => { try { enviarCuestionario(s.id, p.id, true); n++; } catch (e) {} });
       conDatos(dd => { const rr = (buscarSorteo(dd, s.id).recordatorios || []).find(x => x.fecha === rc.fecha); if (rr) { rr.hecho = ahoraISO(); rr.enviados = n; } });
     });
-    // 3) "¿Qué regalaste?"
+    // 3) Recordatorio la víspera
+    const vp = s.vispera;
+    if (vp && vp.activo && vp.cuando && !vp.hecho && Date.parse(vp.cuando) <= ahora && Date.parse(vp.cuando) > ahora - 36 * 3600 * 1000) {
+      let n = 0; try { n = recordatorioVispera(d, s); } catch (e) {}
+      conDatos(dd => { const ss = buscarSorteo(dd, s.id); if (ss.vispera && ss.vispera.cuando === vp.cuando) { ss.vispera.hecho = ahoraISO(); ss.vispera.enviados = n; } });
+    }
+    // 4) "¿Qué regalaste?"
     const er = s.encuestaRegalo;
     if (er && er.fecha && !er.hecho && Date.parse(er.fecha) <= ahora) { try { encuestaRegalo(s.id); } catch (e) {} }
   });

@@ -202,7 +202,9 @@ function asegurarTokens(){ let c=false; (DB.sorteos||[]).forEach(s=>(s.personas|
 function tipoDe(p){ return (p.edad && +p.edad < 16) ? 'ninos' : tipoPorNombre(p.nombre); }
 const respondidoEsteAnio = p => !!(p.respondido && +String(p.respondido).slice(0,4) === new Date().getFullYear());
 const ETIQUETA_TIPO = p => p.cuestionario==='ninos' ? '🧒 Niño/a'+(p.edad?' ('+p.edad+' años)':'') : p.cuestionario==='completo' ? '👩 Mujer' : '👨 Hombre';
-const VERSION_GOOGLE = '3.2';
+const VERSION_GOOGLE = '3.3';
+function asisteDe(p,s){ const h=registroActualApp(s); return (h && p.asistencia && p.asistencia.anio===h.anio) ? p.asistencia.resp : ''; }
+function asisteTxt(p,s){ const r=asisteDe(p,s); return r==='si'?'🙋 Viene · ':r==='no'?'🚫 No viene · ':r==='nose'?'🤔 No lo sabe · ':''; }
 let ESTADO = null;
 async function cargarEstado(){ if(!conectado()) return null; try{ ESTADO = await llamar('estado'); }catch(e){ ESTADO = null; } return ESTADO; }
 /* Mujer → cuestionario completo · Hombre → cuestionario rápido (se deduce del nombre) */
@@ -526,7 +528,7 @@ function tPersonas(s){
       ${s.personas.length ? s.personas.map((p,i)=>`
         <div class="person ${p.activo===false?'off':''}">
           <div class="av" style="background:${color(i)}">${esc(iniciales(p.nombre))}</div>
-          <div class="pinfo"><div class="pname">${esc(p.nombre)}</div><div class="pmail">${esc(p.email)}</div>${listaIdeas(p.ideas).length?`<div class="pmail" style="color:var(--green)">💡 ${listaIdeas(p.ideas).length} ${listaIdeas(p.ideas).length===1?'idea':'ideas'} de regalo</div>`:''}<div class="pmail" style="white-space:normal">${ETIQUETA_TIPO(p)} · ${respondidoEsteAnio(p)?'<span style="color:var(--green)">✅ rellenado</span>':(p.cuestEnviado&&+p.cuestEnviado.slice(0,4)===new Date().getFullYear()?'<span style="color:#a0670a">⏳ sin responder</span>':'📋 sin enviar')}</div></div>
+          <div class="pinfo"><div class="pname">${esc(p.nombre)}</div><div class="pmail">${esc(p.email)}</div>${listaIdeas(p.ideas).length?`<div class="pmail" style="color:var(--green)">💡 ${listaIdeas(p.ideas).length} ${listaIdeas(p.ideas).length===1?'idea':'ideas'} de regalo</div>`:''}<div class="pmail" style="white-space:normal">${asisteTxt(p,s)}${ETIQUETA_TIPO(p)} · ${respondidoEsteAnio(p)?'<span style="color:var(--green)">✅ rellenado</span>':(p.cuestEnviado&&+p.cuestEnviado.slice(0,4)===new Date().getFullYear()?'<span style="color:#a0670a">⏳ sin responder</span>':'📋 sin enviar')}</div></div>
           <label class="switch" title="Participa este año" style="margin:0"><input type="checkbox" ${p.activo!==false?'checked':''} onchange="togglePersona('${p.id}',this.checked)"><span></span></label>
           <button class="mini" aria-label="Editar" onclick="editarPersona('${p.id}')">✏️</button>
         </div>`).join('') : `<div class="empty">Todavía no hay nadie. Añade a la familia aquí abajo o importa tu Excel.</div>`}
@@ -552,10 +554,87 @@ function anadirPersona(){
   const s=S(VIEW.id), n=$('#nNombre').value.trim(), e=$('#nEmail').value.trim();
   if(!n) return toast('Escribe un nombre');
   if(!emailValido(e)) return toast('Ese correo no parece válido');
-  s.personas.push({id:uid(), token:randHex(12), cuestionario:tipoPorNombre(n), nombre:n, email:e, ideas:$('#nIdeas').value.trim(), ideasAt:new Date().toISOString(), activo:true}); save(); render();
+  const nueva={id:uid(), token:randHex(12), cuestionario:tipoPorNombre(n), nombre:n, email:e, ideas:$('#nIdeas').value.trim(), ideasAt:new Date().toISOString(), activo:true};
+  s.personas.push(nueva); save(); render();
   toast(`${n} añadido/a 🎄`); setTimeout(()=>$('#nNombre')?.focus(),50);
+  if(sorteoVivo(s)) setTimeout(()=>ofrecerAlta(s, nueva), 400);
 }
-function togglePersona(id, on){ const p=S(VIEW.id).personas.find(x=>x.id===id); p.activo=on; save(); render(); }
+async function togglePersona(id, on){
+  const s=S(VIEW.id), p=s.personas.find(x=>x.id===id), h=sorteoVivo(s);
+  if(h){
+    const pares=dec(h.enc,s.salt);
+    if(!on && (id in pares)){
+      const r=await tresOpciones(`¿Quitar a ${esc(p.nombre)} del sorteo de ${h.anio}?`, `${esc(p.nombre)} ya está en el sorteo de este año. Si le quitas, la persona que le regalaba pasará a regalar a otra y <b>solo ella recibirá un correo nuevo</b>. Nadie más se entera.`, 'Quitar del sorteo', 'Solo para próximos años');
+      if(r===null){ render(); return; }
+      p.activo=false; save();
+      if(r===1) await ajustarSorteo(s, 'baja', id);
+      render(); return;
+    }
+    if(on && !(id in pares)){
+      p.activo=true; save(); render();
+      await ofrecerAlta(s, p); return;
+    }
+  }
+  p.activo=on; save(); render();
+}
+/* El sorteo de este año ya enviado (si lo hay) */
+function sorteoVivo(s){ const h=registroActualApp(s); return (h && h.estado!=='programado' && h.anio>=new Date().getFullYear()) ? h : null; }
+function tresOpciones(titulo, texto, a, b){
+  return new Promise(res=>{
+    modal(`<h3 style="margin:0 0 8px;font-size:20px">${titulo}</h3><p class="note" style="font-size:15px">${texto}</p>
+      <button class="btn gold block" id="o1">${a}</button><button class="btn block" style="margin-top:8px" id="o2">${b}</button><button class="btn block ghost" style="margin-top:8px;color:var(--ink2);border-color:#d6cdb8" id="o0">Cancelar</button>`);
+    $('#o1').onclick=()=>{closeModal();res(1)}; $('#o2').onclick=()=>{closeModal();res(2)}; $('#o0').onclick=()=>{closeModal();res(null)};
+  });
+}
+async function ofrecerAlta(s, p){
+  const h=sorteoVivo(s); if(!h || (p.id in dec(h.enc,s.salt))) return;
+  const r=await tresOpciones(`¿Añadir a ${esc(p.nombre)} al sorteo de ${h.anio}?`, `El sorteo de este año ya está hecho. Si lo añades, <b>solo cambia una persona</b>: esa persona pasará a regalar a ${esc(p.nombre)}, y ${esc(p.nombre)} regalará a quien le tocaba a ella. Solo esas dos reciben correo.`, 'Añadir al sorteo', 'Solo para próximos años');
+  if(r===1) await ajustarSorteo(s, 'alta', p.id);
+}
+/* ¿Se puede que g regale a x, según las reglas de años anteriores? */
+function permitido(s, anio, g, x){
+  if(g===x) return false;
+  const r=s.reglas, hist=s.historial.filter(h=>h.anio<anio).sort((a,b)=>b.anio-a.anio).map(h=>dec(h.enc,s.salt));
+  if(r.noRepetirAnterior && hist[0] && hist[0][g]===x) return false;
+  if(r.maxVeces>0){ const desde=anio-r.ventana; let n=0; s.historial.filter(h=>h.anio<anio && h.anio>desde).forEach(h=>{ if(dec(h.enc,s.salt)[g]===x) n++; }); if(n>=r.maxVeces) return false; }
+  return true;
+}
+/* Reajusta la cadena cambiando lo mínimo y manda correo solo a quien cambia */
+async function ajustarSorteo(s, tipo, pid){
+  if(!conectado()) return toast('Conecta primero el Gmail del sorteo');
+  await cargarNube(); s=S(s.id); const h=sorteoVivo(s); if(!h) return;
+  const pares=dec(h.enc,s.salt), anio=h.anio, ok=(g,x)=>permitido(s,anio,g,x), afectados=[];
+  if(tipo==='baja'){
+    if(!(pid in pares)) return;
+    const g=Object.keys(pares).find(k=>pares[k]===pid), y=pares[pid];
+    delete pares[pid]; if(h.enviados) delete h.enviados[pid]; if(h.leidos) delete h.leidos[pid];
+    if(Object.keys(pares).length<3) return toast('Quedarían menos de 3 personas en el sorteo');
+    if(y!==g && ok(g,y)){ pares[g]=y; afectados.push(g); }
+    else {
+      // Se intercambia con otra persona para que nadie se regale a sí mismo ni repita
+      const cands=shuffle(Object.keys(pares).filter(k=>k!==g && k!==y && pares[k]!==g));
+      let h2=cands.find(k=>ok(g,pares[k]) && ok(k, y===g ? g : y)) || cands[0];
+      const z=pares[h2]; pares[g]=z; pares[h2]= (y===g) ? g : y; afectados.push(g,h2);
+    }
+  } else {
+    if(pid in pares) return;
+    const cands=shuffle(Object.keys(pares));
+    const hh=cands.find(k=>ok(k,pid) && ok(pid,pares[k])) || cands[0];
+    const z=pares[hh]; pares[hh]=pid; pares[pid]=z; afectados.push(hh,pid);
+  }
+  // comprobación: todos regalan y reciben una vez, nadie a sí mismo
+  const ks=Object.keys(pares), vs=new Set(Object.values(pares));
+  if(vs.size!==ks.length || ks.some(k=>pares[k]===k || !vs.has(k))) return toast('No se pudo reajustar. Inténtalo otra vez.');
+  h.enc=enc(pares,s.salt); h.enviados=h.enviados||{}; h.leidos=h.leidos||{};
+  afectados.forEach(a=>{ h.enviados[a]=false; delete h.leidos[a]; });
+  h.ajustes=(h.ajustes||[]).concat([{tipo, f:new Date().toISOString()}]);
+  save(); await subir();
+  if(pendiente) return toast('⚠️ No se pudo guardar en la nube. Inténtalo de nuevo.');
+  let n=0;
+  for(const a of afectados){ try{ await enviarAPersona(s, anio, a); h.enviados[a]=true; n++; }catch(e){} }
+  save(); render();
+  toast(n===afectados.length ? `✓ Sorteo reajustado. ${n===1?'Se ha enviado 1 correo':'Se han enviado '+n+' correos'}.` : '⚠️ Algún correo no salió: reenvíalo desde el Historial.');
+}
 function editarPersona(id){
   const s=S(VIEW.id), p=s.personas.find(x=>x.id===id);
   modal(`<h3 style="margin:0 0 4px;font-size:20px">Editar persona</h3>
@@ -563,6 +642,7 @@ function editarPersona(id){
     <label>Correo</label><input id="eE" type="email" value="${esc(p.email)}">
     <label>Gustos e ideas de regalo (una por línea)</label><textarea id="eI" style="min-height:140px" placeholder="Novelas de misterio&#10;Plantas&#10;Chocolate negro">${esc(p.ideas||'')}</textarea>
     <p class="note" style="margin:4px 0 0">Le llegarán a quien le toque regalar a ${esc(p.nombre)}.</p>
+    ${registroActualApp(s)?`<label>¿Viene al reparto de ${registroActualApp(s).anio}?</label><select id="eV"><option value="">Sin respuesta</option><option value="si" ${asisteDe(p,s)==='si'?'selected':''}>🙋 Sí, viene</option><option value="no" ${asisteDe(p,s)==='no'?'selected':''}>🚫 No viene</option><option value="nose" ${asisteDe(p,s)==='nose'?'selected':''}>🤔 No lo sabe</option></select>`:''}
     <label>Edad (solo si es menor de 16)</label><input id="eA" type="number" inputmode="numeric" min="1" max="17" value="${esc(p.edad||'')}" placeholder="Déjalo vacío si es adulto">
     <label>Cuestionario de gustos (puesto automáticamente)</label>
     <select id="eC"><option value="completo" ${p.cuestionario==='completo'?'selected':''}>👩 Mujer (cuestionario completo)</option><option value="sencillo" ${p.cuestionario==='sencillo'?'selected':''}>👨 Hombre (cuestionario rápido)</option><option value="ninos" ${p.cuestionario==='ninos'?'selected':''}>🧒 Niño/a (cuestionario de niños)</option></select>
@@ -571,7 +651,9 @@ function editarPersona(id){
     ${p.respuestas&&p.respuestas.lista&&p.respuestas.lista.length?`<details style="margin-top:10px"><summary style="font-weight:800;cursor:pointer">📋 Ver sus respuestas</summary><div class="preview" style="margin-top:8px;font-size:14px">${p.respuestas.lista.map(r=>`<div style="margin-bottom:6px"><span style="color:var(--ink2);font-size:12px">${esc(r.q)}</span><br><b>${esc(r.a)}</b></div>`).join('')}</div></details>`:''}
     <div class="row2" style="margin-top:14px"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn gold" id="eOk">Guardar</button></div>
     <button class="btn block" style="margin-top:10px;color:var(--danger)" id="eDel">🗑️ Quitar del sorteo</button>`);
-  $('#eOk').onclick=()=>{ const n=$('#eN').value.trim(), e=$('#eE').value.trim(); if(!n) return toast('Escribe un nombre'); if(!emailValido(e)) return toast('Ese correo no parece válido'); p.nombre=n; p.email=e; const ni=$('#eI').value.trim(); if(ni!==(p.ideas||'')){ p.ideas=ni; p.ideasAt=new Date().toISOString(); } p.edad=+$('#eA').value||undefined; p.cuestionario=$('#eC').value; save(); closeModal(); render(); };
+  $('#eOk').onclick=()=>{ const n=$('#eN').value.trim(), e=$('#eE').value.trim(); if(!n) return toast('Escribe un nombre'); if(!emailValido(e)) return toast('Ese correo no parece válido'); p.nombre=n; p.email=e; const ni=$('#eI').value.trim(); if(ni!==(p.ideas||'')){ p.ideas=ni; p.ideasAt=new Date().toISOString(); } p.edad=+$('#eA').value||undefined; p.cuestionario=$('#eC').value;
+    if($('#eV')){ const v=$('#eV').value, h=registroActualApp(s); if(v!==asisteDe(p,s)) p.asistencia = v ? {anio:h.anio, resp:v, f:new Date().toISOString()} : {anio:h.anio, resp:'', f:new Date().toISOString()}; }
+    save(); closeModal(); render(); };
   $('#eA').oninput=()=>{ const ed=+$('#eA').value; if(ed && ed<16) $('#eC').value='ninos'; else if($('#eC').value==='ninos') $('#eC').value=tipoPorNombre($('#eN').value); };
   $('#eC').onchange=()=>{ p.cuestionario=$('#eC').value; save(); };
   $('#eLink').onclick=()=>copiarEnlace(p);
@@ -605,9 +687,11 @@ function tMensaje(s){
   previsualizar();
 }
 function insertar(t){ const ta=$('#evM'); const a=ta.selectionStart??ta.value.length, b=ta.selectionEnd??a; ta.value=ta.value.slice(0,a)+t+ta.value.slice(b); ta.focus(); ta.selectionStart=ta.selectionEnd=a+t.length; guardarEvento(); }
+function cuandoVispera(s){ const ev=s.evento||{}, v=s.vispera||{}; if(!ev.fecha) return ''; const d=new Date(ev.fecha+'T'+(v.hora||'19:00')+':00'); d.setDate(d.getDate()-1); return d.toISOString(); }
 function guardarEvento(){
   const s=S(VIEW.id), ev=s.evento;
   ev.fecha=$('#evF').value; ev.hora=$('#evH').value; ev.lugar=$('#evL').value; ev.presMin=$('#evPmin').value.trim(); ev.presMax=$('#evPmax').value.trim(); delete ev.presupuesto; if($('#evPtxt')) $('#evPtxt').textContent='En el correo aparecerá: '+presupuestoTexto(ev); ev.asunto=$('#evA').value; ev.mensaje=$('#evM').value;
+  if(s.vispera){ const c=cuandoVispera(s); if(c!==s.vispera.cuando){ s.vispera.cuando=c; delete s.vispera.hecho; } }
   save(); previsualizar();
 }
 function previsualizar(){
@@ -813,7 +897,35 @@ function tOpciones(s){
       <p class="note">${er.hecho?'✅ Enviado el '+esc(fechaCorta(er.hecho)):er.fecha?'⏰ Programado':'Elige la fecha y pulsa Guardar.'}</p>
       <div class="row2"><button class="btn gold" id="erG">Guardar fecha</button><button class="btn" id="erYa">Enviar ahora</button></div>
     </div>
+    <div class="card">
+      <b style="font-size:18px">🙋 ¿Quién viene al reparto?</b>
+      ${ult?(()=>{ const ids=Object.keys(dec(ult.enc,s.salt)), c={si:0,no:0,nose:0,'':0}; ids.forEach(i=>{ const p=s.personas.find(x=>x.id===i); if(p) c[asisteDe(p,s)]++; }); return `<p class="note">🙋 Vienen: <b>${c.si}</b> · 🚫 No vienen: <b>${c.no}</b> · 🤔 No lo saben: <b>${c.nose}</b> · Sin responder: <b>${c['']}</b></p>`; })():''}
+      <p class="note">A cada uno le llega un correo con tres botones (sí, no, aún no lo sé). También lo pueden cambiar desde su página. Si alguien no puede ir, quien le regala lo ve para organizarse. Tú puedes apuntarlo a mano en el ✏️ de cada persona.</p>
+      ${ult?`<button class="btn gold block" id="asPreg">📨 Preguntar a todos si vienen</button>${s.asistenciaPreguntada?`<p class="note">✅ Preguntado el ${esc(fechaCorta(s.asistenciaPreguntada))}</p>`:''}`:'<p class="note">Disponible cuando esté hecho el sorteo.</p>'}
+    </div>
+    <div class="card">
+      <div class="person" style="border:0;padding:0"><div class="pinfo"><b style="font-size:18px">📅 Recordatorio la víspera</b><div class="pmail" style="white-space:normal">El día antes del reparto, a cada uno le llega un correo con el día, el lugar y "¡no olvides el regalo!". Si su amigo invisible no va, se lo recuerda.</div></div>
+      <label class="switch" style="margin:0"><input type="checkbox" id="vpOn" ${(s.vispera||{}).activo?'checked':''}><span></span></label></div>
+      <label for="vpH">Hora del recordatorio (el día antes)</label><input type="time" id="vpH" value="${esc((s.vispera||{}).hora||'19:00')}">
+      <p class="note">${!s.evento.fecha?'⚠️ Pon el día del reparto en ✉️ Mensaje para poder usarlo.':(s.vispera||{}).hecho?'✅ Enviado el '+esc(fechaCorta(s.vispera.hecho)):(s.vispera||{}).activo?'⏰ Saldrá el '+esc(fechaCorta(cuandoVispera(s))):'Apagado. Si la fecha no es fija, déjalo así.'}</p>
+    </div>
+    <div class="card">
+      <b style="font-size:18px">💬 Mensajes para el grupo de WhatsApp</b>
+      <p class="note">Textos listos para pegar en el grupo de la familia. Pulsa "Copiar" o "WhatsApp" y elige el grupo.</p>
+      ${mensajesWhatsApp(s).map((m,i)=>`<div style="border-top:1px dashed #e3dccb;padding-top:10px;margin-top:10px"><b>${m.t}</b><div class="preview" style="margin:6px 0;font-size:14px">${esc(m.txt)}</div>
+        <div class="row2"><button class="btn small" data-copia="${i}">📋 Copiar</button><a class="btn small gold" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(m.txt)}">💬 WhatsApp</a></div></div>`).join('')}
+      <label for="wCorreo" style="margin-top:12px">Correo del sorteo (aparece en los mensajes)</label>
+      <input id="wCorreo" type="email" value="${esc(correoSorteo())}">
+    </div>
     <div class="card"><button class="btn block" onclick="verResumen('${s.id}')">📊 Ver resumen del sorteo</button></div>`;
+  $('#asPreg')?.addEventListener('click', async()=>{
+    if(!await confirmar('¿Preguntar a todos si vienen?','A cada persona del sorteo le llegará un correo con tres botones para responder.','Enviar')) return;
+    toast('✉️ Enviando…'); if(pendiente) await subir();
+    try{ const r=await llamar('preguntarAsistencia',{sid:s.id}); toast('Enviado a '+r.enviados+' personas 🙋'); await cargarNube(); render(); }catch(e){ toast('No se pudo enviar: '+String(e.message).slice(0,80)); } });
+  const guardarVp=()=>{ s.vispera=Object.assign({}, s.vispera||{}, {activo:$('#vpOn').checked, hora:$('#vpH').value||'19:00'}); const c=cuandoVispera(s); if(c!==s.vispera.cuando){ s.vispera.cuando=c; delete s.vispera.hecho; } save(); render(); toast('Guardado'); };
+  $('#vpOn').onchange=guardarVp; $('#vpH').onchange=guardarVp;
+  document.querySelectorAll('[data-copia]').forEach(b=>b.onclick=async()=>{ try{ await navigator.clipboard.writeText(mensajesWhatsApp(s)[+b.dataset.copia].txt); toast('Copiado 📋'); }catch(e){ toast('No se pudo copiar'); } });
+  $('#wCorreo').onchange=()=>{ DB.ajustes=DB.ajustes||{}; DB.ajustes.correoSorteo=$('#wCorreo').value.trim(); save(); render(); };
   document.querySelectorAll('#temas [data-t]').forEach(b=>b.onclick=()=>{ o.tema=b.dataset.t; save(); render(); toast('Tema cambiado'); });
   $('#oRasca').onchange=()=>{ o.rasca=$('#oRasca').checked; save(); toast('Guardado'); };
   $('#oPreg').onchange=()=>{ o.preguntas=$('#oPreg').checked; save(); render(); };
@@ -833,6 +945,21 @@ function tOpciones(s){
     try{ const r=await llamar('encuestaRegalo',{sid:s.id}); toast('Enviado a '+r.enviados+' personas 🎁'); await cargarNube(); render(); }catch(e){ toast('No se pudo enviar: '+String(e.message).slice(0,80)); } };
 }
 
+/* ---------- 💬 Mensajes para WhatsApp ---------- */
+function correoSorteo(){ return (DB.ajustes||{}).correoSorteo || 'amigoinvisible.familia.dapica@gmail.com'; }
+function mensajesWhatsApp(s){
+  const ev=s.evento||{}, c=correoSorteo(), anio=ev.fecha?ev.fecha.slice(0,4):new Date().getFullYear();
+  const em={navidad:'🎄',reyes:'👑',cumple:'🎂'}[temaDe(s)];
+  return [
+    {t:'📋 Para pedir los gustos', txt:`🎁 ¡Llega el amigo invisible ${anio}! Os va a llegar un correo de ${c} con un enlace para contar vuestros gustos. Son 2 minutos y ayuda mucho a acertar 😉 Si no lo veis, mirad en spam.`},
+    {t:'✨ Sorteo hecho', txt:`✨ ¡Ya está hecho el sorteo del amigo invisible! Mirad vuestro correo (y la carpeta de spam): os ha llegado un mensaje de ${c} para descubrir a quién le hacéis el regalo. 🤫 ¡Que no se entere nadie!`},
+    {t:'📅 Datos del reparto', txt:`${em} Amigo invisible ${anio}\n📅 Día: ${fechaTexto(ev)}\n📍 Lugar: ${ev.lugar||'por decidir'}\n💶 Presupuesto: ${presupuestoTexto(ev)}\n¡Nos vemos allí!`},
+    {t:'🙋 ¿Venís al reparto?', txt:`🙋 ¿Venís al reparto del amigo invisible? Confirmadlo con los botones del correo que os ha llegado de ${c} (o decídmelo por aquí). Si no podéis venir no pasa nada: quien os regala lo sabrá para organizarse.`},
+    {t:'💬 Preguntas anónimas', txt:`💬 Novedad: ya podéis hacerle preguntas a vuestro amigo invisible sin que sepa quién sois (talla, color…). Lo tenéis en el enlace del correo de ${c}.`},
+    {t:'📬 Para que no vaya a spam', txt:`📬 Guardad ${c} en vuestros contactos para que los correos del amigo invisible no os vayan a spam.`},
+  ];
+}
+
 /* ---------- 📊 Resumen ---------- */
 async function verResumen(sid){
   if(conectado()){ toast('Cargando…'); await cargarNube(); }
@@ -850,6 +977,7 @@ async function verResumen(sid){
     ${ult?fila('👀 Lo han abierto', lei+' / '+ids.length, noLei.length?'Sin abrir: '+noLei.map(p=>esc(p.nombre)).join(', '):''):''}
     ${ult?fila('💬 Preguntas anónimas', est?est.preguntas+' ('+est.respondidas+' respondidas)':'…'):''}
     ${ult?fila('🎁 Han apuntado su regalo', apunt+' / '+ids.length):''}
+    ${ult?(()=>{ const ps=ids.map(i=>s.personas.find(p=>p.id===i)).filter(Boolean), v=ps.filter(p=>asisteDe(p,s)==='si'), n=ps.filter(p=>asisteDe(p,s)==='no'); return fila('🙋 Vienen al reparto', v.length+' / '+ps.length, n.length?'No vienen: '+n.map(p=>esc(p.nombre)).join(', '):''); })():''}
     ${ESTADO?fila('📮 Correos que quedan hoy', ESTADO.restantes):''}
     <button class="btn block" style="margin-top:12px" onclick="closeModal()">Cerrar</button>`);
   pintar(null);
