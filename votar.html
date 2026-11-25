@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🗳️ Amigo invisible · Votación</title>
+<meta name="theme-color" content="#14213d">
+<link rel="icon" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#14213d;--cab:#1d2d50;--cab2:#0f1a33;--acento:#e5c07b;--claro:#e5c07b;--papel:#fbf8f1;--tinta:#1d2d50;--sub:#c9d3e6;--borde:#e5c07b;--ok:#3d7a5c;--titulo:'Cormorant Garamond',Georgia,serif}
+body.reyes{--bg:#211a44;--cab:#6b3fa0;--cab2:#4f2d7a;--acento:#e9b44c;--claro:#ffd666;--papel:#fbf6ff;--tinta:#2a1840;--sub:#d9cff0;--borde:#6b3fa0;--titulo:Georgia,serif}
+body.invierno{--bg:#0b1530;--cab:#132147;--cab2:#0b1530;--acento:#5fd3b0;--claro:#8fe8cf;--papel:#eef4ff;--tinta:#0b1530;--sub:#b9c8e6;--borde:#5fd3b0;--ok:#2f8f7a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--papel);font-family:Nunito,Arial,sans-serif;padding:16px 14px 110px}
+.w{max-width:560px;margin:0 auto;position:relative;z-index:1}
+h1{font-family:var(--titulo);color:var(--claro);text-align:center;font-size:34px;margin:8px 0 2px}
+.sub{text-align:center;color:var(--sub);margin:0 0 16px;line-height:1.45}
+.card{background:var(--papel);color:var(--tinta);border-radius:18px;padding:16px;margin-bottom:14px;border-top:6px solid var(--borde)}
+.card h2{font-family:var(--titulo);color:var(--cab2);margin:0 0 6px;font-size:24px}
+.fecha{padding:12px 0;border-top:1px dashed #e3dccb}.fecha:first-of-type{border-top:0}
+.fecha b{display:block;margin-bottom:8px;font-size:16px}
+.tres{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.op{border:2px solid #e3dccb;background:#fff;color:var(--tinta);border-radius:12px;padding:10px 4px;font:800 14px Nunito,Arial;cursor:pointer}
+.op.si.on{background:#3d7a5c;border-color:#3d7a5c;color:#fff}
+.op.quiza.on{background:#c9a35a;border-color:#c9a35a;color:#fff}
+.op.no.on{background:#a33a3a;border-color:#a33a3a;color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:2px solid #e3dccb;background:#fff;color:var(--tinta);border-radius:999px;padding:9px 14px;font:700 15px Nunito,Arial;cursor:pointer}
+.chip.on{background:var(--ok);border-color:var(--ok);color:#fff}
+textarea{width:100%;border:2px solid #e3dccb;border-radius:12px;padding:11px 12px;font:16px Nunito,Arial;color:var(--tinta);background:#fff;min-height:70px}
+.save{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(528px,calc(100% - 28px));border:0;border-radius:18px;padding:16px;font:700 22px var(--titulo);background:var(--acento);color:var(--bg);box-shadow:0 6px 0 rgba(0,0,0,.25);cursor:pointer}
+.save[disabled]{opacity:.6}
+.bar{height:10px;border-radius:6px;background:#e3dccb;overflow:hidden;margin:4px 0 2px;display:flex}
+.bar i{display:block;height:100%}
+.note{font-size:13px;color:#7a6a5a;line-height:1.45}
+#aviso{display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--papel);color:var(--tinta);padding:12px 16px;border-radius:12px;font-weight:700;z-index:9;max-width:90%}
+</style>
+</head>
+<body>
+<div class="w" id="app"><h1>🗳️</h1><p class="sub">Cargando…</p></div><div id="aviso" role="status"></div>
+<script>
+'use strict';
+const Q = new URLSearchParams(location.search);
+const TOKEN = Q.get('t') || '', URLG = Q.get('u') || '';
+const app = document.getElementById('app');
+const esc = t => String(t==null?'':t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const soloAscii = t => t.replace(/[\u007f-￿]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4,'0'));
+let D = null, voto = {fechas:{}, lugar:'', comentario:''};
+function aviso(t){ const el=document.getElementById('aviso'); el.textContent=t; el.style.display='block'; setTimeout(()=>el.style.display='none',3500); }
+async function llamar(o){
+  const r = await fetch(URLG,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:soloAscii(JSON.stringify(o))});
+  const j = await r.json(); if(!j.ok) throw new Error(j.error||'Error'); return j;
+}
+function noValido(t){ app.innerHTML='<h1>Amigo invisible</h1><div class="card">'+esc(t||'Este enlace no es válido. Pide uno nuevo a quien organiza el sorteo.')+'</div>'; }
+async function inicio(){
+  if(!TOKEN || !/^https:\/\/script\.google(usercontent)?\.com\//.test(URLG)) return noValido();
+  try{ D = await llamar({accion:'votacion', t:TOKEN}); }
+  catch(e){ return noValido(/no válido/i.test(e.message)?null:'No se ha podido cargar. Revisa tu conexión y vuelve a abrir el enlace.'); }
+  document.body.className = (D.tema==='cumple'?'invierno':D.tema) || 'navidad';
+  if(D.cerrada) return cerrada();
+  if(D.miVoto) voto = {fechas:Object.assign({}, D.miVoto.fechas||{}), lugar:D.miVoto.lugar||'', comentario:D.miVoto.comentario||''};
+  pintar();
+}
+function cerrada(){
+  app.innerHTML = `<h1>🗳️ Votación cerrada</h1><div class="card" style="text-align:center">¡Gracias, ${esc(D.nombre)}! La votación ya ha terminado.
+    ${D.fecha?`<p>📅 <b>${esc(D.fecha)}</b>${D.lugar?`<br>📍 <b>${esc(D.lugar)}</b>`:''}</p>`:''}</div>`;
+}
+function resultados(){
+  const T=D.totales; if(!T || !T.votantes) return '';
+  return `<div class="card"><h2>📊 Cómo va</h2><p class="note">Han votado <b>${T.votantes}</b> ${T.votantes===1?'persona':'personas'}.</p>
+    ${D.fechas.map(f=>{ const c=T.fechas[f.id]||{si:0,quiza:0,no:0}, tot=Math.max(1,c.si+c.quiza+c.no);
+      return `<div style="margin-top:8px"><b style="font-size:14px">${esc(f.texto)}</b><div class="bar"><i style="width:${c.si/tot*100}%;background:#3d7a5c"></i><i style="width:${c.quiza/tot*100}%;background:#c9a35a"></i><i style="width:${c.no/tot*100}%;background:#a33a3a"></i></div>
+        <span class="note">✅ ${c.si} pueden · 🤔 ${c.quiza} quizá · ❌ ${c.no} no</span></div>`; }).join('')}
+    ${D.lugares.length?'<div style="margin-top:10px"><b style="font-size:14px">Sitio preferido</b>'+D.lugares.map(l=>`<div class="note">📍 ${esc(l.nombre)}: <b>${T.lugares[l.id]||0}</b></div>`).join('')+'</div>':''}</div>`;
+}
+function pintar(){
+  let h = `<h1>¡Hola, ${esc(D.nombre)}!</h1><p class="sub">🗳️ ¿Qué día te viene mejor para el reparto del amigo invisible?${D.miVoto?'<br>Ya votaste: puedes cambiar lo que quieras.':''}</p>`;
+  h += `<div class="card"><h2>📅 Fechas</h2><p class="note">Marca en cada día si puedes ir.</p>
+    ${D.fechas.map(f=>`<div class="fecha"><b>${esc(f.texto)}</b><div class="tres" data-f="${f.id}">
+      <button class="op si${voto.fechas[f.id]==='si'?' on':''}" data-v="si">✅ Puedo</button>
+      <button class="op quiza${voto.fechas[f.id]==='quiza'?' on':''}" data-v="quiza">🤔 Quizá</button>
+      <button class="op no${voto.fechas[f.id]==='no'?' on':''}" data-v="no">❌ No puedo</button></div></div>`).join('')}</div>`;
+  if(D.lugares.length) h += `<div class="card"><h2>📍 Sitio</h2><p class="note">¿Cuál prefieres?</p><div class="chips" id="lug">
+    ${D.lugares.map(l=>`<button class="chip${voto.lugar===l.id?' on':''}" data-l="${l.id}">${esc(l.nombre)}</button>`).join('')}
+    <button class="chip${voto.lugar===''&&D.miVoto?' on':''}" data-l="">Me da igual</button></div></div>`;
+  h += `<div class="card"><h2>💬 Comentario</h2><textarea id="com" maxlength="300" placeholder="Por ejemplo: solo puedo por la tarde">${esc(voto.comentario)}</textarea></div>`;
+  h += resultados();
+  h += `<button class="save" id="save">🗳️ Guardar mi voto</button>`;
+  app.innerHTML = h;
+  document.querySelectorAll('.tres').forEach(g=>g.onclick=e=>{ const b=e.target.closest('.op'); if(!b) return; voto.fechas[g.dataset.f]=b.dataset.v; g.querySelectorAll('.op').forEach(x=>x.classList.toggle('on', x===b)); });
+  document.getElementById('lug')?.addEventListener('click', e=>{ const b=e.target.closest('.chip'); if(!b) return; voto.lugar=b.dataset.l; document.querySelectorAll('#lug .chip').forEach(x=>x.classList.toggle('on', x===b)); });
+  document.getElementById('save').onclick = guardar;
+}
+async function guardar(){
+  voto.comentario = document.getElementById('com').value.trim();
+  const falta = D.fechas.filter(f=>!voto.fechas[f.id]).length;
+  if(falta===D.fechas.length) return aviso('Marca al menos un día');
+  const b=document.getElementById('save'); b.disabled=true; b.textContent='Guardando…';
+  try{
+    D = Object.assign(D, await llamar({accion:'votar', t:TOKEN, voto}));
+    if(D.cerrada) return cerrada();
+    pintar(); aviso('¡Voto guardado! 🗳️'); window.scrollTo(0, document.body.scrollHeight);
+  }catch(e){ b.disabled=false; b.textContent='🗳️ Guardar mi voto'; aviso(e.message||'No se pudo guardar'); }
+}
+inicio();
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@
  */
 const CLAVE = 'cambia-esta-clave';
 
-const VERSION = '3.3';
+const VERSION = '3.4';
 const ARCHIVO = 'amigo-invisible-datos.json';
 const MAX_PREGUNTAS = 15;          // por persona y año
 
@@ -46,6 +46,8 @@ const PUBLICAS = {
   contestar:    p => contestar(p.k, p.q, p.texto),
   regalo:       p => guardarRegalo(p.k, p.que),
   asistencia:   p => guardarAsistencia(p.k, p.r),
+  votacion:     p => datosVotacion(p.t),
+  votar:        p => { guardarVoto(p.t, p.voto || {}); return datosVotacion(p.t); },
 };
 
 function atender(p) {
@@ -62,6 +64,7 @@ function atender(p) {
       case 'activarPreguntas':  return activarPreguntas(p.sid);
       case 'encuestaRegalo':    return encuestaRegalo(p.sid);
       case 'preguntarAsistencia': return preguntarAsistencia(p.sid);
+      case 'enviarVotacion':    return enviarVotacion(p.sid);
       case 'plantillas':        return { ok: true, efectivos: cuestionarios(leer()), defecto: CUESTIONARIOS };
       case 'estadisticas':      return estadisticas(p.sid);
       case 'estado':            return estado();
@@ -132,6 +135,10 @@ function mezclar(actual, nuevo) {
     if (s.encuestaRegalo && sa.encuestaRegalo && sa.encuestaRegalo.hecho && s.encuestaRegalo.fecha === sa.encuestaRegalo.fecha) s.encuestaRegalo.hecho = sa.encuestaRegalo.hecho;
     if (s.vispera && sa.vispera && sa.vispera.hecho && s.vispera.cuando === sa.vispera.cuando) s.vispera.hecho = sa.vispera.hecho;
     if (sa.asistenciaPreguntada && !s.asistenciaPreguntada) s.asistenciaPreguntada = sa.asistenciaPreguntada;
+    if (sa.votacion && s.votacion && sa.votacion.id === s.votacion.id) {   // los votos los escribe Google
+      s.votacion.votos = Object.assign({}, s.votacion.votos || {}, sa.votacion.votos || {});
+      if (sa.votacion.enviada && !s.votacion.enviada) s.votacion.enviada = sa.votacion.enviada;
+    }
     (s.historial || []).forEach(h => {
       const ha = (sa.historial || []).find(x => (h.id && x.id === h.id) || (!h.id && x.anio === h.anio && x.enc === h.enc));
       if (!ha) return;
@@ -171,7 +178,7 @@ function dec(str, salt) {
 }
 
 function buscarSorteo(d, sid) { return (d.sorteos || []).find(s => s.id === sid); }
-function opciones(s) { const o = s.opciones || {}; return { tema: o.tema || 'navidad', rasca: o.rasca !== false, preguntas: o.preguntas !== false }; }
+function opciones(s) { const o = s.opciones || {}; return { tema: (o.tema === 'cumple' ? 'invierno' : o.tema) || 'navidad', rasca: o.rasca !== false, preguntas: o.preguntas !== false }; }
 /* El sorteo ya enviado más reciente (no cuenta uno programado que aún no se ha mandado) */
 function registroActual(s) {
   return (s.historial || []).filter(h => h.estado !== 'programado').sort((a, b) => b.anio - a.anio)[0] || null;
@@ -230,7 +237,7 @@ function porSecreto(d, k) {
 const TEMAS = {
   navidad: { emoji: '✨', titulo: 'Amigo invisible', fondo: '#14213d', cab: '#1d2d50', cabTexto: '#e5c07b', acento: '#e5c07b', claro: '#c9d3e6', papel: '#fbf8f1', tinta: '#1d2d50', nombre: '#b08a3e', fiesta: '¡Feliz Navidad!' },   // Noche dorada
   reyes:   { emoji: '👑', titulo: 'Amigo invisible de Reyes', fondo: '#211a44', cab: '#6b3fa0', acento: '#e9b44c', claro: '#ffd666', papel: '#fbf6ff', tinta: '#2a1840', fiesta: '¡Felices Reyes!' },
-  cumple:  { emoji: '🎂', titulo: 'Amigo invisible de cumpleaños', fondo: '#123a4a', cab: '#e0457b', acento: '#2ec4b6', claro: '#ffe066', papel: '#fffaf3', tinta: '#2b1b2e', fiesta: '¡Feliz cumpleaños!' },
+  invierno:{ emoji: '❄️', titulo: 'Amigo invisible de invierno', fondo: '#0b1530', cab: '#132147', cabTexto: '#8fe8cf', acento: '#5fd3b0', claro: '#e6f6ff', papel: '#eef4ff', tinta: '#0b1530', nombre: '#2f8f7a', fiesta: '¡Feliz invierno!' },   // Aurora boreal
 };
 const tema = s => TEMAS[opciones(s).tema] || TEMAS.navidad;
 
@@ -603,6 +610,55 @@ function preguntarAsistencia(sid) {
   limpiarEnviados(false);
   return { ok: true, enviados: n };
 }
+/* ---------- 🗳️ Votación de fecha y lugar ---------- */
+function totalesVotacion(v) {
+  const t = { fechas: {}, lugares: {}, votantes: Object.keys(v.votos || {}).length };
+  (v.fechas || []).forEach(f => { t.fechas[f.id] = { si: 0, quiza: 0, no: 0 }; });
+  (v.lugares || []).forEach(l => { t.lugares[l.id] = 0; });
+  Object.values(v.votos || {}).forEach(vo => {
+    Object.keys(vo.fechas || {}).forEach(id => { if (t.fechas[id] && t.fechas[id][vo.fechas[id]] !== undefined) t.fechas[id][vo.fechas[id]]++; });
+    if (vo.lugar && t.lugares[vo.lugar] !== undefined) t.lugares[vo.lugar]++;
+  });
+  return t;
+}
+function datosVotacion(token) {
+  const d = leer(), r = buscarPorToken(d, token);
+  if (!r) return { ok: false, error: 'Enlace no válido' };
+  const s = r.s, v = s.votacion, base = { ok: true, nombre: r.p.nombre, sorteo: s.nombre, tema: opciones(s).tema };
+  if (!v || !v.abierta) return Object.assign(base, { cerrada: true, fecha: s.evento && s.evento.fecha ? fechaTexto(s.evento) : '', lugar: (s.evento && s.evento.lugar) || '' });
+  return Object.assign(base, {
+    fechas: (v.fechas || []).map(f => ({ id: f.id, texto: fechaTexto(f) })),
+    lugares: (v.lugares || []).map(l => ({ id: l.id, nombre: l.nombre })),
+    miVoto: (v.votos || {})[r.p.id] || null, totales: totalesVotacion(v), nota: v.nota || '',
+  });
+}
+function guardarVoto(token, voto) {
+  conDatos(d => {
+    const r = buscarPorToken(d, token); if (!r) throw new Error('Enlace no válido');
+    const v = r.s.votacion; if (!v || !v.abierta) throw new Error('La votación ya está cerrada');
+    const fechas = {}; (v.fechas || []).forEach(f => { const x = (voto.fechas || {})[f.id]; if (['si', 'quiza', 'no'].indexOf(x) >= 0) fechas[f.id] = x; });
+    const lugar = (v.lugares || []).some(l => l.id === voto.lugar) ? voto.lugar : '';
+    v.votos = v.votos || {};
+    v.votos[r.p.id] = { fechas: fechas, lugar: lugar, comentario: String(voto.comentario || '').trim().slice(0, 300), f: ahoraISO() };
+  });
+}
+function enviarVotacion(sid) {
+  const d = leer(), s = buscarSorteo(d, sid), v = s && s.votacion;
+  if (!v || !v.abierta || !(v.fechas || []).length) throw new Error('Crea primero la votación con alguna fecha');
+  const t = tema(s); let n = 0;
+  (s.personas || []).filter(p => p.activo !== false && emailValido(p.email) && p.token).forEach(p => {
+    const url = enlacePagina(d, 'votar.html', { t: p.token });
+    correo(p.email, '🗳️ ¿Qué día os viene mejor? · ' + s.nombre,
+      'Hola ' + p.nombre + ', vota qué días puedes para el reparto del amigo invisible: ' + url,
+      marco(t, '🗳️ ¿Qué día te viene mejor?', esc(s.nombre), '¡Hola <b>' + esc(p.nombre) + '</b>! ' + t.emoji + '<br><br>Estamos buscando el día en que podamos juntarnos más para el reparto del amigo invisible.<br><br>Marca qué días puedes' + ((v.lugares || []).length ? ' y qué sitio prefieres' : '') + '. Es un momento.<br><br>' +
+        boton(t, url, '🗳️ Votar') + '<br><br><span style="font-size:13px;color:#7a6a5a">Puedes cambiar tu voto cuando quieras con el mismo enlace.</span>'));
+    n++;
+  });
+  conDatos(dd => { const vv = buscarSorteo(dd, sid).votacion; if (vv) vv.enviada = ahoraISO(); });
+  limpiarEnviados(false);
+  return { ok: true, enviados: n };
+}
+
 /* ---------- Recordatorio la víspera del reparto ---------- */
 function recordatorioVispera(d, s) {
   const h = registroActual(s); if (!h) return 0;

@@ -1,5 +1,5 @@
-const CACHE = 'amigo-invisible-v16';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './Codigo-Google.gs', './cuestionario.html', './amigo.html'];
+const CACHE = 'amigo-invisible-v17';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './Codigo-Google.gs', './cuestionario.html', './amigo.html','./votar.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

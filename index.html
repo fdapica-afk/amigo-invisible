@@ -133,9 +133,8 @@ code{background:var(--cream2);padding:1px 6px;border-radius:6px;font-size:14px;w
 #ground{position:fixed;left:0;right:0;bottom:0;height:70px;z-index:0;pointer-events:none}
 .garland{display:block;width:100%;height:56px;margin-bottom:-6px}
 html.reyes,body.reyes{--bg:#211a44;--bg2:#2d2360;--bg3:#3a2d78;--cream:#fbf6ff;--cream2:#ece3f7;--ink:#2a1840;--ink2:#6b5a80;--red:#c27c2c;--red2:#8f5a1c;--gold:#e9b44c;--gold2:#ffd666;--green:#3d7a5c}
-html.cumple,body.cumple{--bg:#123a4a;--bg2:#1a4a5c;--bg3:#225a6e;--cream:#fffaf3;--cream2:#f3e9dc;--ink:#2b1b2e;--ink2:#6e5a66;--red:#e0457b;--red2:#b8325f;--gold:#2ec4b6;--gold2:#ffe066;--green:#2e8b57}
-body.cumple .btn.red,body.cumple .tabs button.on{color:#fff}
-body.cumple .fab{box-shadow:0 6px 0 #1f8f86,0 10px 30px rgba(0,0,0,.4)}
+html.invierno,body.invierno{--bg:#0b1530;--bg2:#132147;--bg3:#1b2a52;--cream:#eef4ff;--cream2:#dde7f7;--ink:#0b1530;--ink2:#5a6b8c;--red:#2f8f7a;--red2:#1f6b5a;--gold:#5fd3b0;--gold2:#e6f6ff;--green:#2f8f7a}
+body.invierno .fab{box-shadow:0 6px 0 #2f8f7a,0 10px 30px rgba(0,0,0,.4)}
 .mueve{animation:balanceo 3.4s ease-in-out infinite}
 .spinning .mueve{animation:agitar .32s ease-in-out infinite}
 .gira{animation:spin 9s linear infinite}
@@ -202,7 +201,7 @@ function asegurarTokens(){ let c=false; (DB.sorteos||[]).forEach(s=>(s.personas|
 function tipoDe(p){ return (p.edad && +p.edad < 16) ? 'ninos' : tipoPorNombre(p.nombre); }
 const respondidoEsteAnio = p => !!(p.respondido && +String(p.respondido).slice(0,4) === new Date().getFullYear());
 const ETIQUETA_TIPO = p => p.cuestionario==='ninos' ? '🧒 Niño/a'+(p.edad?' ('+p.edad+' años)':'') : p.cuestionario==='completo' ? '👩 Mujer' : '👨 Hombre';
-const VERSION_GOOGLE = '3.3';
+const VERSION_GOOGLE = '3.4';
 function asisteDe(p,s){ const h=registroActualApp(s); return (h && p.asistencia && p.asistencia.anio===h.anio) ? p.asistencia.resp : ''; }
 function asisteTxt(p,s){ const r=asisteDe(p,s); return r==='si'?'🙋 Viene · ':r==='no'?'🚫 No viene · ':r==='nose'?'🤔 No lo sabe · ':''; }
 let ESTADO = null;
@@ -436,11 +435,11 @@ let busy = false;
 const TEMA_APP = {
   navidad:{ color:'#14213d', sub:'✨ en familia · Navidad {anio} ✨', mezcla:'✨ Mezclando los nombres bajo las estrellas…', lleva:n=>`🎄 Llevando la carta a ${n}…`, fiesta:'¡Feliz Navidad!' },
   reyes:{ color:'#211a44', sub:'👑 en familia · Reyes Magos {anio} 👑', mezcla:'👑 Los Reyes Magos están mezclando los nombres…', lleva:n=>`🐪 Llevando el regalo a ${n}…`, fiesta:'¡Felices Reyes!' },
-  cumple:{ color:'#123a4a', sub:'🎂 en familia 🎂', mezcla:'🎉 Mezclando los nombres…', lleva:n=>`🎁 Llevando la sorpresa a ${n}…`, fiesta:'¡Feliz cumpleaños!' },
+  invierno:{ color:'#0b1530', sub:'❄️ en familia · Invierno {anio} ❄️', mezcla:'❄️ Mezclando los nombres bajo la aurora…', lleva:n=>`🌌 Llevando la carta a ${n}…`, fiesta:'¡Feliz invierno!' },
 };
-function temaDe(s){ const t=((s||{}).opciones||{}).tema; return TEMA_APP[t] ? t : 'navidad'; }
+function temaDe(s){ let t=((s||{}).opciones||{}).tema; if(t==='cumple') t='invierno'; return TEMA_APP[t] ? t : 'navidad'; }
 function temaActual(){ const s = (VIEW.v==='sorteo'||VIEW.v==='run') ? S(VIEW.id) : null; return temaDe(s || DB.sorteos[0]); }
-function aplicarTema(t){ t=t||temaActual(); for(const el of [document.documentElement, document.body]){ el.classList.remove('navidad','reyes','cumple'); el.classList.add(t); }
+function aplicarTema(t){ t=t||temaActual(); for(const el of [document.documentElement, document.body]){ el.classList.remove('navidad','reyes','cumple','invierno'); el.classList.add(t); }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', TEMA_APP[t].color); }
 function render(){
   $('.fab')?.remove();
@@ -462,10 +461,12 @@ function decoHTML(t){
       <path transform="translate(200 26) scale(1.5)" d="M0 -14 l3.5 9.5 10 .5-8 6.5 3 10-8.5-5.5-8.5 5.5 3-10-8-6.5 10-.5z" fill="#ffd666"/>
       <circle cx="200" cy="27" r="22" fill="#ffd666" opacity=".12"/></svg>`;
   }
-  if(t==='cumple'){
-    const col=['#e0457b','#ffe066','#2ec4b6','#ffffff','#9b7fd1']; let c='';
-    for(let i=0;i<34;i++){ const x=(i*47)%396+2, y=(i*29)%52+4; c+= i%3===0 ? `<circle cx="${x}" cy="${y}" r="3" fill="${col[i%5]}"/>` : `<rect x="${x}" y="${y}" width="5" height="10" rx="1" fill="${col[i%5]}" transform="rotate(${(i*37)%180} ${x} ${y})"/>`; }
-    return `<svg class="garland" viewBox="0 0 400 60" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${c}</svg>`;
+  if(t==='invierno'){
+    let st=''; for(let i=0;i<22;i++){ const x=(i*53)%396+2, y=(i*31)%54+3; st+=`<circle cx="${x}" cy="${y}" r="${1+(i%3)*.6}" fill="#e6f6ff" class="b" style="animation-delay:${(i%5)*.4}s"/>`; }
+    return `<svg class="garland" viewBox="0 0 400 60" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <path d="M-20 34 Q80 0 180 26 T420 14" stroke="#5fd3b0" stroke-width="14" fill="none" opacity=".28"/>
+      <path d="M-20 46 Q100 18 220 40 T420 26" stroke="#9b7fd1" stroke-width="10" fill="none" opacity=".25"/>
+      <path d="M-20 24 Q120 -4 240 18 T420 6" stroke="#8fe8cf" stroke-width="4" fill="none" opacity=".35"/>${st}</svg>`;
   }
   // Navidad (noche dorada): ramas de abeto con bolas doradas
   let agujas='';
@@ -869,7 +870,7 @@ function tOpciones(s){
     <div class="card">
       <b style="font-size:18px">🎨 Tema</b>
       <p class="note" style="margin-top:4px">Cambia los colores, los dibujos y las animaciones de los correos y de las páginas que recibe la familia.</p>
-      <div class="chips" id="temas">${[['navidad','✨ Navidad (noche dorada)'],['reyes','👑 Reyes Magos'],['cumple','🎂 Cumpleaños']].map(([k,l])=>`<button class="chip" data-t="${k}" style="${tema===k?'background:var(--green);color:#fff':''}">${l}</button>`).join('')}</div>
+      <div class="chips" id="temas">${[['navidad','✨ Navidad (noche dorada)'],['reyes','👑 Reyes Magos'],['invierno','❄️ Invierno (aurora boreal)']].map(([k,l])=>`<button class="chip" data-t="${k}" style="${tema===k?'background:var(--green);color:#fff':''}">${l}</button>`).join('')}</div>
     </div>
     <div class="card">
       <div class="person" style="border:0;padding:0"><div class="pinfo"><b style="font-size:18px">🎁 Rasca y descubre</b><div class="pmail" style="white-space:normal">El correo no dice el nombre: cada uno pulsa un botón y lo descubre rascando con el dedo. Allí ve también sus gustos.</div></div>
@@ -897,6 +898,7 @@ function tOpciones(s){
       <p class="note">${er.hecho?'✅ Enviado el '+esc(fechaCorta(er.hecho)):er.fecha?'⏰ Programado':'Elige la fecha y pulsa Guardar.'}</p>
       <div class="row2"><button class="btn gold" id="erG">Guardar fecha</button><button class="btn" id="erYa">Enviar ahora</button></div>
     </div>
+    ${tVotacion(s)}
     <div class="card">
       <b style="font-size:18px">🙋 ¿Quién viene al reparto?</b>
       ${ult?(()=>{ const ids=Object.keys(dec(ult.enc,s.salt)), c={si:0,no:0,nose:0,'':0}; ids.forEach(i=>{ const p=s.personas.find(x=>x.id===i); if(p) c[asisteDe(p,s)]++; }); return `<p class="note">🙋 Vienen: <b>${c.si}</b> · 🚫 No vienen: <b>${c.no}</b> · 🤔 No lo saben: <b>${c.nose}</b> · Sin responder: <b>${c['']}</b></p>`; })():''}
@@ -918,6 +920,7 @@ function tOpciones(s){
       <input id="wCorreo" type="email" value="${esc(correoSorteo())}">
     </div>
     <div class="card"><button class="btn block" onclick="verResumen('${s.id}')">📊 Ver resumen del sorteo</button></div>`;
+  enganchaVotacion(s);
   $('#asPreg')?.addEventListener('click', async()=>{
     if(!await confirmar('¿Preguntar a todos si vienen?','A cada persona del sorteo le llegará un correo con tres botones para responder.','Enviar')) return;
     toast('✉️ Enviando…'); if(pendiente) await subir();
@@ -945,12 +948,93 @@ function tOpciones(s){
     try{ const r=await llamar('encuestaRegalo',{sid:s.id}); toast('Enviado a '+r.enviados+' personas 🎁'); await cargarNube(); render(); }catch(e){ toast('No se pudo enviar: '+String(e.message).slice(0,80)); } };
 }
 
+
+/* ---------- 🗳️ Votación de fecha y lugar ---------- */
+function resumenVotos(s){
+  const v=s.votacion||{}, votos=v.votos||{}, act=s.personas.filter(p=>p.activo!==false);
+  const nombre=id=>(s.personas.find(p=>p.id===id)||{}).nombre||'?';
+  const fechas=(v.fechas||[]).map(f=>{ const c={si:[],quiza:[],no:[]}; Object.keys(votos).forEach(id=>{ const x=(votos[id].fechas||{})[f.id]; if(c[x]) c[x].push(nombre(id)); }); return Object.assign({},f,{c, punt:c.si.length*2+c.quiza.length}); });
+  const lugares=(v.lugares||[]).map(l=>({...l, n:Object.values(votos).filter(x=>x.lugar===l.id).length}));
+  const mejor=fechas.length?fechas.reduce((a,b)=>b.punt>a.punt||(b.punt===a.punt&&b.c.no.length<a.c.no.length)?b:a):null;
+  const mejorL=lugares.length?lugares.reduce((a,b)=>b.n>a.n?b:a):null;
+  const sinVotar=act.filter(p=>!votos[p.id]).map(p=>p.nombre);
+  const coment=Object.keys(votos).filter(id=>votos[id].comentario).map(id=>({n:nombre(id),t:votos[id].comentario}));
+  return {v, fechas, lugares, mejor:mejor&&mejor.punt>0?mejor:null, mejorL:mejorL&&mejorL.n>0?mejorL:null, votantes:Object.keys(votos).length, total:act.length, sinVotar, coment};
+}
+function tVotacion(s){
+  const v=s.votacion;
+  if(!v || !v.abierta){
+    return `<div class="card"><b style="font-size:18px">🗳️ Votar el día del reparto</b>
+      <p class="note" style="margin-top:4px">Propón varios días (y sitios si quieres). Cada uno marca si puede ✅, quizá 🤔 o no ❌, y se elige el día en que podáis ir más.</p>
+      ${v&&v.cerrada?`<p class="note">✅ Última votación cerrada el ${esc(fechaCorta(v.cerrada))}.</p>`:''}
+      <button class="btn gold block" id="vtNueva">🗳️ Crear una votación</button></div>`;
+  }
+  const R=resumenVotos(s);
+  const fila=f=>{ const tot=Math.max(1,R.votantes), es=R.mejor&&R.mejor.id===f.id;
+    return `<div style="border-top:1px dashed #e3dccb;padding:10px 0${es?';background:rgba(61,122,92,.08);border-radius:10px;padding-left:8px;padding-right:8px':''}">
+      <b>${es?'🏆 ':''}${esc(fechaTexto(f))}</b>
+      <div style="height:10px;border-radius:6px;background:#e3dccb;overflow:hidden;margin:6px 0;display:flex"><i style="width:${f.c.si.length/tot*100}%;background:#3d7a5c"></i><i style="width:${f.c.quiza.length/tot*100}%;background:#c9a35a"></i><i style="width:${f.c.no.length/tot*100}%;background:#a33a3a"></i></div>
+      <div class="note" style="margin:0">✅ ${f.c.si.length} · 🤔 ${f.c.quiza.length} · ❌ ${f.c.no.length}${f.c.no.length?` <span style="color:#a33a3a">(no pueden: ${f.c.no.map(esc).join(', ')})</span>`:''}${f.c.quiza.length?`<br>🤔 Quizá: ${f.c.quiza.map(esc).join(', ')}`:''}</div>
+      <button class="btn small${es?' gold':''}" style="margin-top:6px" data-elf="${f.id}">📅 Elegir este día</button></div>`; };
+  return `<div class="card"><b style="font-size:18px">🗳️ Votación del día del reparto</b>
+    <p class="note" style="margin-top:4px">Han votado <b>${R.votantes} de ${R.total}</b>.${v.enviada?' Enviada el '+esc(fechaCorta(v.enviada))+'.':' Aún no se ha enviado.'}</p>
+    ${R.fechas.map(fila).join('')}
+    ${R.lugares.length?`<div style="border-top:1px dashed #e3dccb;padding-top:10px"><b>📍 Sitio</b>${R.lugares.map(l=>`<div class="row2" style="align-items:center;margin-top:6px"><span>${R.mejorL&&R.mejorL.id===l.id?'🏆 ':''}${esc(l.nombre)}: <b>${l.n}</b></span><button class="btn small" data-ell="${l.id}">Elegir</button></div>`).join('')}</div>`:''}
+    ${R.coment.length?`<div style="border-top:1px dashed #e3dccb;padding-top:10px;margin-top:10px"><b>💬 Comentarios</b>${R.coment.map(c=>`<div class="note">${esc(c.n)}: “${esc(c.t)}”</div>`).join('')}</div>`:''}
+    ${R.sinVotar.length&&R.votantes?`<p class="note">⏳ Sin votar: ${R.sinVotar.map(esc).join(', ')}</p>`:''}
+    <button class="btn gold block" id="vtEnv" style="margin-top:10px">📨 ${v.enviada?'Volver a enviar la votación':'Enviar la votación a todos'}</button>
+    <div class="row2" style="margin-top:8px"><button class="btn small" id="vtAct">↻ Actualizar</button><button class="btn small" id="vtEdit">✏️ Editar</button><button class="btn small" id="vtCerrar">Cerrar</button></div></div>`;
+}
+function editarVotacion(s){
+  const v=s.votacion&&s.votacion.abierta?s.votacion:{fechas:[],lugares:[]};
+  const fs=(v.fechas.length?v.fechas:[{},{},{}]);
+  const filaF=(f,i)=>`<div class="row2" style="margin-top:6px"><input type="date" class="vfF" value="${esc(f.fecha||'')}" data-id="${f.id||''}"><input type="time" class="vfH" value="${esc(f.hora||'')}" style="max-width:120px"></div>`;
+  modal(`<h3 style="margin:0 0 6px;font-size:20px">🗳️ Votación del día</h3>
+    <p class="note">Días posibles (la hora es opcional):</p><div id="vfL">${fs.map(filaF).join('')}</div>
+    <button class="btn small" id="vfMas" style="margin-top:6px">＋ Otro día</button>
+    <label for="vlL" style="margin-top:12px">Sitios posibles (opcional, uno por línea)</label>
+    <textarea id="vlL" rows="3" placeholder="Casa de los abuelos&#10;Restaurante…">${esc((v.lugares||[]).map(l=>l.nombre).join('\n'))}</textarea>
+    ${v.votos&&Object.keys(v.votos).length?'<p class="note">Los votos ya hechos se mantienen para los días que no cambies.</p>':''}
+    <div class="row2" style="margin-top:12px"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn gold" id="vfG">Guardar</button></div>`);
+  $('#vfMas').onclick=()=>$('#vfL').insertAdjacentHTML('beforeend', filaF({},0));
+  $('#vfG').onclick=()=>{
+    const fF=[...document.querySelectorAll('.vfF')], fH=[...document.querySelectorAll('.vfH')];
+    const fechas=fF.map((x,i)=>({id:x.dataset.id||uid(), fecha:x.value, hora:fH[i].value})).filter(f=>f.fecha).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+    if(fechas.length<1) return toast('Pon al menos un día');
+    const ant=v.lugares||[], lugares=$('#vlL').value.split('\n').map(x=>x.trim()).filter(Boolean).map(n=>(ant.find(l=>l.nombre===n)||{id:uid(),nombre:n}));
+    const nueva=!(s.votacion&&s.votacion.abierta);
+    s.votacion = nueva ? {id:uid(), abierta:true, fechas, lugares, votos:{}} : Object.assign(s.votacion,{fechas, lugares});
+    closeModal(); save(); render(); toast(nueva?'Votación creada. Ahora envíala 📨':'Guardado');
+  };
+}
+function enganchaVotacion(s){
+  $('#vtNueva')?.addEventListener('click',()=>editarVotacion(s));
+  $('#vtEdit')?.addEventListener('click',()=>editarVotacion(s));
+  $('#vtAct')?.addEventListener('click',async()=>{ toast('Cargando…'); await cargarNube(); render(); });
+  $('#vtCerrar')?.addEventListener('click',async()=>{ if(!await confirmar('¿Cerrar la votación?','Ya no se podrá votar. Los resultados se pierden de la pantalla (elige antes el día).','Cerrar')) return; s.votacion={id:s.votacion.id, abierta:false, cerrada:new Date().toISOString()}; save(); render(); });
+  $('#vtEnv')?.addEventListener('click',async()=>{
+    if(!conectado()) return toast('Conecta primero Google en ⚙️ Ajustes');
+    if(!await confirmar('¿Enviar la votación?','A cada persona del sorteo le llegará un correo con un botón para votar los días'+((s.votacion.lugares||[]).length?' y el sitio':'')+'.','Enviar')) return;
+    toast('✉️ Enviando…'); if(pendiente) await subir();
+    try{ const r=await llamar('enviarVotacion',{sid:s.id}); toast('Enviado a '+r.enviados+' personas 🗳️'); await cargarNube(); render(); }catch(e){ toast('No se pudo enviar: '+String(e.message).slice(0,80)); } });
+  document.querySelectorAll('[data-elf]').forEach(b=>b.onclick=async()=>{
+    const f=s.votacion.fechas.find(x=>x.id===b.dataset.elf);
+    if(!await confirmar('¿Elegir este día?',fechaTexto(f)+'. Se pondrá como día del reparto en ✉️ Mensaje.','Elegir')) return;
+    s.evento.fecha=f.fecha; if(f.hora) s.evento.hora=f.hora;
+    const R=resumenVotos(s); if(R.mejorL && !s.evento.lugar) s.evento.lugar=R.mejorL.nombre;
+    const cerrar=await confirmar('Día elegido 📅','¿Cierras ya la votación para que nadie vote más?','Cerrar votación');
+    if(cerrar) s.votacion={id:s.votacion.id, abierta:false, cerrada:new Date().toISOString()};
+    save(); render(); toast('Día del reparto: '+fechaTexto(s.evento)); });
+  document.querySelectorAll('[data-ell]').forEach(b=>b.onclick=()=>{ const l=s.votacion.lugares.find(x=>x.id===b.dataset.ell); s.evento.lugar=l.nombre; save(); render(); toast('Lugar: '+l.nombre); });
+}
+
 /* ---------- 💬 Mensajes para WhatsApp ---------- */
 function correoSorteo(){ return (DB.ajustes||{}).correoSorteo || 'amigoinvisible.familia.dapica@gmail.com'; }
 function mensajesWhatsApp(s){
   const ev=s.evento||{}, c=correoSorteo(), anio=ev.fecha?ev.fecha.slice(0,4):new Date().getFullYear();
-  const em={navidad:'🎄',reyes:'👑',cumple:'🎂'}[temaDe(s)];
+  const em={navidad:'🎄',reyes:'👑',invierno:'❄️'}[temaDe(s)];
   return [
+    ...(s.votacion&&s.votacion.abierta?[{t:'🗳️ Votar el día', txt:`🗳️ ¡Vamos a elegir el día del reparto del amigo invisible ${anio}! Os ha llegado un correo de ${c} con un botón para votar qué días podéis. Votad pronto y elegimos el día en que podamos juntarnos más 🙌`}]:[]),
     {t:'📋 Para pedir los gustos', txt:`🎁 ¡Llega el amigo invisible ${anio}! Os va a llegar un correo de ${c} con un enlace para contar vuestros gustos. Son 2 minutos y ayuda mucho a acertar 😉 Si no lo veis, mirad en spam.`},
     {t:'✨ Sorteo hecho', txt:`✨ ¡Ya está hecho el sorteo del amigo invisible! Mirad vuestro correo (y la carpeta de spam): os ha llegado un mensaje de ${c} para descubrir a quién le hacéis el regalo. 🤫 ¡Que no se entere nadie!`},
     {t:'📅 Datos del reparto', txt:`${em} Amigo invisible ${anio}\n📅 Día: ${fechaTexto(ev)}\n📍 Lugar: ${ev.lugar||'por decidir'}\n💶 Presupuesto: ${presupuestoTexto(ev)}\n¡Nos vemos allí!`},
@@ -1243,18 +1327,23 @@ function bomboSVG(nBalls, t){
         <circle cx="70" cy="266" r="4" fill="#ffd666"/><circle cx="230" cy="266" r="4" fill="#ffd666"/>
       </g></svg>`;
   }
-  if(t==='cumple'){
-    // Caja sorpresa
-    const cols=['#e0457b','#ffe066','#2ec4b6','#ffffff','#9b7fd1'];
-    return `<svg class="bombo" viewBox="0 0 300 300" role="img" aria-label="Caja sorpresa del sorteo">
-      <g class="mueve" style="transform-origin:150px 290px">
-        <g class="salta">${bolitas(Math.min(nBalls,9),150,88,62,cols)}</g>
-        <rect x="70" y="160" width="160" height="128" rx="8" fill="#e0457b"/>
-        <rect x="138" y="160" width="24" height="128" fill="#ffe066"/>
-        <g transform="rotate(-8 60 150)"><rect x="56" y="128" width="188" height="36" rx="6" fill="#ff6f9c"/><rect x="138" y="128" width="24" height="36" fill="#ffe066"/>
-          <path d="M150 128 q-44 -42 -54 -8 q14 12 54 8 q40 4 54 -8 q-10 -34 -54 8z" fill="#ffe066" stroke="#e8b800" stroke-width="2"/><circle cx="150" cy="126" r="8" fill="#e8b800"/></g>
-        <g fill="#fff" opacity=".9"><circle cx="96" cy="196" r="5"/><circle cx="200" cy="230" r="6"/><circle cx="110" cy="256" r="4"/><circle cx="214" cy="186" r="4"/></g>
-      </g></svg>`;
+  if(t==='invierno'){
+    // Esfera de cristal con aurora boreal
+    const cols=['#5fd3b0','#e6f6ff','#9b7fd1','#8fb3d9','#ffffff','#3fb8a0'];
+    return `<svg class="bombo" viewBox="0 0 300 300" role="img" aria-label="Esfera de cristal del sorteo">
+      <defs><clipPath id="clipEsfera"><circle cx="150" cy="140" r="100"/></clipPath></defs>
+      <ellipse cx="150" cy="140" rx="128" ry="120" fill="#5fd3b0" opacity=".07"/>
+      <path d="M95 292 L205 292 L186 236 L114 236 Z" fill="#1b2a52" stroke="#5fd3b0" stroke-width="2.5"/><rect x="86" y="286" width="128" height="10" rx="5" fill="#5fd3b0"/>
+      <circle cx="150" cy="140" r="104" fill="#132147" stroke="#5fd3b0" stroke-width="5"/>
+      <g clip-path="url(#clipEsfera)">
+        <path d="M40 120 Q100 70 160 110 T270 90" stroke="#5fd3b0" stroke-width="22" fill="none" opacity=".28"/>
+        <path d="M40 150 Q110 110 180 145 T270 125" stroke="#9b7fd1" stroke-width="16" fill="none" opacity=".25"/>
+        <g class="gira" style="transform-origin:150px 140px">${bolitas(nBalls,150,140,82,cols)}</g>
+        <path d="M46 196 q104 34 208 0 v60 h-208z" fill="#e6f6ff" opacity=".85"/>
+      </g>
+      <path d="M86 78 a92 92 0 0 1 48 -30" stroke="#fff" stroke-width="7" fill="none" opacity=".22" stroke-linecap="round"/>
+      <g fill="#e6f6ff"><circle cx="40" cy="60" r="2"/><circle cx="264" cy="52" r="2.4"/><circle cx="30" cy="200" r="1.6"/><circle cx="272" cy="210" r="1.8"/></g>
+    </svg>`;
   }
   // Navidad (noche dorada): adorno gigante colgando
   const cols=['#e5c07b','#fbf8f1','#8fa9d6','#b08a3e','#f3dfae','#5b7bb5','#ffffff'];
@@ -1351,7 +1440,7 @@ async function correr(s, anio, pares, simulacion){
   busy=false;
   if(!simulacion) subir();
   if(!fallos.length){
-    const em={navidad:'✨',reyes:'👑',cumple:'🎉'}[temaDe(s)];
+    const em={navidad:'✨',reyes:'👑',invierno:'❄️'}[temaDe(s)];
     $('#st').textContent = simulacion ? `${em} Así quedará el día del sorteo ${em}` : `✉️ ${ok} cartas entregadas`;
     $('#st').insertAdjacentHTML('beforebegin','<div class="feliz">'+TT.fiesta+'</div>');
     nevada(); villancico();
@@ -1380,8 +1469,8 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rs=()=>{ W=c.width=innerWidth*devicePixelRatio; H=c.height=innerHeight*devicePixelRatio; c.style.width=innerWidth+'px'; c.style.height=innerHeight+'px'; };
   rs(); addEventListener('resize',rs);
   for(let i=0;i<70;i++) f.push({x:Math.random(),y:Math.random(),r:Math.random()*2.2+.8,s:Math.random()*.0012+.0005,d:Math.random()*Math.PI*2});
-  const PAL={navidad:['rgba(255,255,255,.6)'], reyes:['rgba(255,214,102,.7)','rgba(255,255,255,.55)'], cumple:['rgba(224,69,123,.7)','rgba(255,224,102,.7)','rgba(46,196,182,.7)','rgba(255,255,255,.6)']};
-  function step(){ x.clearRect(0,0,W,H); const pal=PAL[document.body.classList.contains('reyes')?'reyes':document.body.classList.contains('cumple')?'cumple':'navidad']; let k=0;
+  const PAL={navidad:['rgba(255,255,255,.6)'], reyes:['rgba(255,214,102,.7)','rgba(255,255,255,.55)'], invierno:['rgba(230,246,255,.7)','rgba(95,211,176,.55)','rgba(255,255,255,.6)']};
+  function step(){ x.clearRect(0,0,W,H); const pal=PAL[document.body.classList.contains('reyes')?'reyes':document.body.classList.contains('invierno')?'invierno':'navidad']; let k=0;
     for(const p of f){ x.fillStyle=pal[(k++)%pal.length]; if(!reduce){ p.y+=p.s; p.d+=.01; p.x+=Math.sin(p.d)*.0004; if(p.y>1.02){p.y=-.02;p.x=Math.random();} }
       x.beginPath(); x.arc(p.x*W,p.y*H,p.r*devicePixelRatio,0,7); x.fill(); }
     if(!reduce) requestAnimationFrame(step); }
@@ -1391,9 +1480,9 @@ function nevada(){
   if(reduce) return;
   const c=$('#confetti'), x=c.getContext('2d'), dpr=devicePixelRatio;
   c.width=innerWidth*dpr; c.height=innerHeight*dpr; c.style.width=innerWidth+'px'; c.style.height=innerHeight+'px';
-  const t=temaActual(), conf=t==='cumple';
-  const formas= t==='reyes' ? ['★','✦','✧'] : ['✦','✧','★','❄','✦','✧','❅'];
-  const paleta= t==='cumple' ? ['#e0457b','#ffe066','#2ec4b6','#ffffff','#9b7fd1'] : t==='reyes' ? ['#ffd666','#e9b44c','#ffffff'] : ['#e5c07b','#f3dfae','#ffffff'];
+  const t=temaActual(), conf=false;
+  const formas= t==='reyes' ? ['★','✦','✧'] : t==='invierno' ? ['❄','❅','✦','❆','✧'] : ['✦','✧','★','❄','✦','✧','❅'];
+  const paleta= t==='invierno' ? ['#5fd3b0','#e6f6ff','#9b7fd1','#ffffff'] : t==='reyes' ? ['#ffd666','#e9b44c','#ffffff'] : ['#e5c07b','#f3dfae','#ffffff'];
   const P=[]; for(let i=0;i<70;i++) P.push({x:Math.random()*c.width, y:-Math.random()*c.height*0.7-20*dpr, s:(Math.random()*10+9)*dpr,
     vy:(Math.random()*1.4+1.1)*dpr, d:Math.random()*6.28, vd:Math.random()*.03+.01, r:Math.random()*6.28, vr:(Math.random()-.5)*.03,
     ch:formas[i%formas.length], col: paleta[i%paleta.length], a:Math.random()*.4+.6});

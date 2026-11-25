@@ -10,7 +10,7 @@
 <style>
 :root{--bg:#14213d;--cab:#1d2d50;--cab2:#0f1a33;--acento:#e5c07b;--claro:#e5c07b;--papel:#fbf8f1;--tinta:#1d2d50;--sub:#c9d3e6;--borde:#e5c07b;--nombre:#b08a3e;--titulo:'Cormorant Garamond',Georgia,serif}
 body.reyes{--borde:#6b3fa0;--nombre:#6b3fa0;--ok:#2e8b57;--bg:#211a44;--cab:#6b3fa0;--cab2:#4f2d7a;--papel:#fbf6ff;--tinta:#2a1840;--sub:#d9cff0;--titulo:Georgia,serif}
-body.cumple{--borde:#e0457b;--nombre:#e0457b;--ok:#2e8b57;--bg:#123a4a;--cab:#e0457b;--cab2:#b8325f;--acento:#2ec4b6;--claro:#ffe066;--papel:#fffaf3;--tinta:#2b1b2e;--sub:#cde8ee;--titulo:Georgia,serif}
+body.invierno{--borde:#5fd3b0;--nombre:#2f8f7a;--ok:#2f8f7a;--bg:#0b1530;--cab:#132147;--cab2:#0b1530;--acento:#5fd3b0;--claro:#8fe8cf;--papel:#eef4ff;--tinta:#0b1530;--sub:#b9c8e6;--titulo:'Cormorant Garamond',Georgia,serif}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--papel);font-family:Nunito,Arial,sans-serif;padding:16px 14px 40px;min-height:100vh}
 .w{max-width:560px;margin:0 auto;position:relative;z-index:1}
@@ -57,14 +57,14 @@ const app = document.getElementById('app');
 const esc = t => String(t==null?'':t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const enlazar = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g,'<br>');
 const soloAscii = t => t.replace(/[\u007f-￿]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4,'0'));
-const EMO = {navidad:'✨', reyes:'👑', cumple:'🎂'};
+const EMO = {navidad:'✨', reyes:'👑', invierno:'❄️'};
 let D = null;
 function aviso(t){ const el=document.getElementById('aviso'); el.textContent=t; el.style.display='block'; clearTimeout(aviso.t); aviso.t=setTimeout(()=>el.style.display='none',3500); }
 async function llamar(o){
   const r = await fetch(URLG,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:soloAscii(JSON.stringify(o))});
   const j = await r.json(); if(!j.ok) throw new Error(j.error||'Error'); return j;
 }
-function tema(t){ document.body.className = t||'navidad'; }
+function tema(t){ document.body.className = (t==='cumple'?'invierno':t)||'navidad'; }
 function noValido(t){ app.innerHTML='<h1>Amigo invisible</h1><div class="card">'+esc(t||'Este enlace no es válido o ya no existe. Pide ayuda a quien organiza el sorteo.')+'</div>'; }
 
 async function inicio(){
@@ -181,8 +181,8 @@ function fiesta(){
   const c=document.getElementById('fx'), x=c.getContext('2d'), dpr=devicePixelRatio||1;
   c.width=innerWidth*dpr; c.height=innerHeight*dpr; c.style.width=innerWidth+'px'; c.style.height=innerHeight+'px';
   const t=document.body.className||'navidad';
-  const forma = t==='reyes' ? ['★','✦','✧'] : t==='cumple' ? null : ['✦','✧','★','❄'];
-  const cols = t==='cumple' ? ['#e0457b','#2ec4b6','#ffe066','#ffffff','#7b6cf6'] : t==='reyes' ? ['#ffd666','#ffffff','#e9b44c'] : ['#e5c07b','#ffffff','#f3dfae'];
+  const forma = t==='reyes' ? ['★','✦','✧'] : t==='invierno' ? ['❄','❅','✦','❆'] : ['✦','✧','★','❄'];
+  const cols = t==='invierno' ? ['#5fd3b0','#e6f6ff','#9b7fd1','#ffffff'] : t==='reyes' ? ['#ffd666','#ffffff','#e9b44c'] : ['#e5c07b','#ffffff','#f3dfae'];
   const P=[]; for(let i=0;i<60;i++) P.push({x:Math.random()*c.width,y:-Math.random()*c.height*.6,s:(Math.random()*10+9)*dpr,vy:(Math.random()*1.6+1.2)*dpr,d:Math.random()*6.3,r:Math.random()*6.3,ch:forma?forma[i%forma.length]:null,col:cols[i%cols.length]});
   const t0=performance.now();
   (function f(now){ const el=(now-t0)/1000, a=el>4.5?Math.max(0,1-(el-4.5)/1.2):1; x.clearRect(0,0,c.width,c.height);
